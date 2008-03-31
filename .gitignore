@@ -1,0 +1,8 @@
+*.o
+*.so
+*.a
+*.pc
+localbuild
+cmd/mvfs
+cmd/urltest
+.svn

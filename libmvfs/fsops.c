@@ -19,6 +19,7 @@
 #include <mvfs/hostfs.h>
 #include <mvfs/mixpfs.h>
 #include <mvfs/_utils.h>
+#include <mvfs/fishfs.h>
 
 #define __CHECK_FS(ret)					\
     {							\
@@ -108,6 +109,8 @@ MVFS_FILESYSTEM* mvfs_fs_create_args(MVFS_ARGS* args)
 	return mvfs_mixpfs_create_args(args);
     if (strcmp(type,"9p")==0)
 	return mvfs_mixpfs_create_args(args);
+    if (strcmp(type,"fish")==0)
+	return mvfs_fishfs_create_args(args);
 
     ERRMSG("unsupported type \"%s\"", type);
     return NULL;

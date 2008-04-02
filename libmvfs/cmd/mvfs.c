@@ -3,17 +3,12 @@
 #define _GNU_SOURCE
 #endif
 
-#define _GNU_SOURCE
 #include <getopt.h>
 
 #include <mvfs/mvfs.h>
-#include <mvfs/hostfs.h>
-#include <mvfs/mixpfs.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-
-// #include <mvfs/mountfs.h>
 
 int catfile(MVFS_FILE* file)
 {
@@ -51,17 +46,6 @@ int run_cat(MVFS_FILESYSTEM* fs, const char* filename)
     catfile(file);
     mvfs_file_close(file);
 }
-
-/*
-int run_ls(MVFS_FILESYSTEM* fs, const char* filename)
-{
-    MVFS_DIR* dir = mvfs_fs_opendir(fs, filename);
-    while (mvfs_dir_scan(dir)==1)
-    {
-	printf("GOT: \"%s\" (%d)\n", dir->current.name, dir->current.type);
-    }
-}
-*/
 
 #define MAX(a,b)	((a>b) ? a : b)
 
@@ -226,44 +210,4 @@ int main(int argc, char* argv[])
 	    fprintf(stderr,"unknown command: %s\n", argv[optind]);
 	}
     }
-
-
-//    MVFS_ARGS* args = mvfs_args_from_url("ninep://localhost:9999/");
-//    MVFS_FILESYSTEM* mixerfs = mvfs_mixpfs_create_args(args);
-
-/*
-    if (argc<x+2)
-    {
-	printf("%s: [cat|write|ls] <filename>\n", argv[0]);
-	return -1;
-    }
-    
-    if ((strcmp(argv[x],"cat")==0)||(strcmp(argv[x],"read")==0))
-    {
-	run_cat(mixerfs, argv[2]);
-	return 0;
-    }
-    else if (strcmp(argv[x],"write")==0)
-    {
-	fprintf(stderr,"write not implemented yet\n");
-	return -1;
-    }
-    else if (strcmp(argv[1],"set")==0)
-    {
-	if (argc<4)
-	{
-	    fprintf(stderr,"store needs four parameters\n");
-	    return -1;
-	}
-	run_store(mixerfs, argv[2], argv[3]);
-	return 1;
-    }
-    else if (strcmp(argv[1],"ls")==0)
-    {
-	run_ls2(mixerfs,argv[2]);
-	return 1;
-    }
-    else
-	fprintf(stderr,"unknown command \"%s\"\n", argv[1]);
-*/
 }

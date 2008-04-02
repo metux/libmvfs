@@ -36,20 +36,6 @@ typedef enum
     WRITE_ASYNC   = 5
 } MVFS_FILE_FLAG;
 
-/*
-struct __mvfs_stat
-{
-    const char* name;
-    const char* uid;
-    const char* gid;
-    mode_t      mode;
-    long        size;
-    time_t      atime;
-    time_t      mtime;
-    time_t      ctime;
-};
-*/
-
 struct __mvfs_symlink
 {
     int   errcode;

@@ -21,6 +21,14 @@
 
 #define	FS_MAGIC	"metux/mixp-fs-1"
 
+static inline char* SSTRDUP(const char* str)
+{
+    if (str==NULL)
+	return strdup("");
+    else
+	return strdup(str);
+}
+
 static off64_t    mvfs_mixpfs_fileops_seek   (MVFS_FILE* file, off64_t offset, int whence);
 static ssize_t    mvfs_mixpfs_fileops_pread  (MVFS_FILE* file, void* buf, size_t count, off64_t offset);
 static ssize_t    mvfs_mixpfs_fileops_pwrite (MVFS_FILE* file, const void* buf, size_t count, off64_t offset);
@@ -166,7 +174,6 @@ static int __mixp_readdir(MVFS_FILE* file)
 		}
 		walk->stat = newstat;
 		newstat = NULL;
-		mixp_stat_free(newstat);
 	    }
 	}
 	priv->dirents = priv->dirptr = entries;
@@ -279,9 +286,9 @@ static inline MVFS_STAT* _convert_stat(MIXP_STAT* st)
 
     MVFS_STAT* stat_mvfs = (MVFS_STAT*)calloc(1,sizeof(MVFS_STAT));
 
-    stat_mvfs->name  = strdup(st->name);
-    stat_mvfs->uid   = strdup(st->uid);
-    stat_mvfs->gid   = strdup(st->gid);
+    stat_mvfs->name  = SSTRDUP(st->name);
+    stat_mvfs->uid   = SSTRDUP(st->uid);
+    stat_mvfs->gid   = SSTRDUP(st->gid);
 
     stat_mvfs->mode  = 0;
     stat_mvfs->size  = st->length;
@@ -327,18 +334,19 @@ static inline MVFS_STAT* _convert_stat(MIXP_STAT* st)
     if (mode & S_IXOTH)
 	stat_mvfs->mode |= S_IXOTH;
 
-    mixp_stat_free(st);
     return stat_mvfs;
 }
 
 MVFS_STAT* mvfs_mixpfs_fileops_stat(MVFS_FILE* file)
 {
     __FILEOPS_HEAD(NULL);
-    MVFS_STAT* st = _convert_stat(mixp_stat(MIXP_FS_CLIENT(file->fs), priv->pathname));
+    MIXP_STAT* mst = mixp_stat(MIXP_FS_CLIENT(file->fs), priv->pathname);
+    MVFS_STAT* st = _convert_stat(mst);
     if (st == NULL)
 	file->errcode = EINVAL;
     else
 	file->errcode = 0;
+    mixp_stat_free(mst);
     return st;
 }
 
@@ -369,7 +377,7 @@ MVFS_FILE* mvfs_mixpfs_fsops_open(MVFS_FILESYSTEM* fs, const char* name, mode_t 
     
     priv->cfid = fid;
     priv->pos  = 0;
-    priv->pathname = strdup(name);
+    priv->pathname = SSTRDUP(name);
 
     return file;
 }
@@ -382,7 +390,9 @@ MVFS_STAT* mvfs_mixpfs_fsops_stat(MVFS_FILESYSTEM* fs, const char* name)
 	return NULL;
     }
 
-    MVFS_STAT* st = _convert_stat(mixp_stat(MIXP_FS_CLIENT(fs), name));
+    MIXP_STAT* mst = mixp_stat(MIXP_FS_CLIENT(fs), name);
+    MVFS_STAT* st = _convert_stat(mst);
+    mixp_stat_free(mst);
     if (st == NULL)
     {
 	fprintf(stderr,"mvfs_mixpfs_fsops_stat() NULL stat\n");

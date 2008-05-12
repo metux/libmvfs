@@ -151,10 +151,11 @@ int main(int argc, char* argv[])
     // try to connect the server
     if (server_url == NULL)
     {
-	server_url = "ninep://localhost:9999/";
+//	server_url = "ninep://localhost:9999/";
+	server_url = "file:///";
 	fprintf(stderr,"WARN: no server url specified. defaulting to %s\n",server_url);
     }
-        
+
     MVFS_ARGS* args = mvfs_args_from_url(server_url);
     MVFS_FILESYSTEM* fs = mvfs_fs_create_args(args); 	// FIXME !!!
     

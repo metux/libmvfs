@@ -77,15 +77,15 @@ MVFS_FILESYSTEM* mvfs_fs_create_args(MVFS_ARGS* args)
 {
     if (args==NULL)
     {
-	fprintf(stderr,"mvfs_fs_create() NULL args\n");
-	return NULL;
+	fprintf(stderr,"mvfs_fs_create() NULL args ... defaulting to file:/");
+	return mvfs_hostfs_create_args(args);
     }
 
     const char* type = mvfs_args_get(args,"type");
     if (type==NULL)
     {
-	fprintf(stderr,"mvfs_fs_create() missing type .. assuming \"file\"\n");
-	return mvfs_fs_create_args(args);
+	fprintf(stderr,"mvfs_fs_create() missing type ... defaulting to \"file\"\n");
+	return mvfs_hostfs_create_args(args);
     }
 
     if (strcmp(type,"file")==0)

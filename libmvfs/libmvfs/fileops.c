@@ -102,12 +102,9 @@ MVFS_STAT* mvfs_stat_dup(MVFS_STAT* oldst)
 MVFS_STAT* mvfs_stat_alloc(const char* name, const char* uid, const char* gid)
 {
     MVFS_STAT* stat = (MVFS_STAT*)calloc(1,sizeof(MVFS_STAT));
-    if (name != NULL)
-	stat->name = strdup(name);
-    if (uid != NULL)
-	stat->uid = strdup(uid);
-    if (gid != NULL)
-	stat->gid = strdup(gid);
+    stat->name = strdup(name ? name : "");
+    stat->uid  = strdup(uid  ? uid : "");	
+    stat->gid  = strdup(gid  ? gid : "");
     return stat;
 }
 

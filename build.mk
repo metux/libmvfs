@@ -44,6 +44,9 @@ LDFLAGS+=$(MIXP_LIBS)
 %.pic.o:	%.c
 	$(CC) -fpic -o $@ -c $< $(CFLAGS)
 
+%.uno:	%.c
+	uno -w -t -u -o $@ -c $< $(CFLAGS)
+
 dump:
 	@echo PREFIX=$(PREFIX)
 	@echo PKG_CONFIG_PATH=$(PKG_CONFIG_PATH)

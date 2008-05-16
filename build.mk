@@ -36,7 +36,7 @@ LDFLAGS+=$(MIXP_LIBS)
 #	$(LD) -o $@ -soname $(SONAME) -shared $^
 
 %.so:
-	$(LD) -o $@ -lc $(LDFLAGS) -no-undefined -shared $^
+	$(LD) -o $@ -lc $(LDFLAGS) -no-undefined -shared -soname $(SONAME) $^
 
 %.nopic.o:	%.c
 	$(CC) -o $@ -c $< $(CFLAGS)

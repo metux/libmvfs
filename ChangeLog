@@ -3,6 +3,7 @@
 
     * metacache_fs: 	added some more sanity checks
     * autoconnect_fs:	fixed buggy pathname handling
+    * Makefile:		added a few check rules (UNO)
 
 2008-05-16	Enrico Weigelt <weigelt@metux.de>
 

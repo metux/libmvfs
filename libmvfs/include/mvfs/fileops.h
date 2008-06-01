@@ -76,4 +76,23 @@ static inline int _mvfs_check_magic(MVFS_FILESYSTEM* fs, const char* magic, cons
     return 1;
 }
 
+// check whether given filename exists and points to an directory
+static inline int mvfs_fs_is_dir(MVFS_FILESYSTEM* fs, const char* filename)
+{
+    MVFS_STAT* st = mvfs_fs_statfile(fs, filename);
+    if (st == NULL)
+	return 0;
+	
+    if (S_ISDIR(st->mode))
+    {
+	mvfs_stat_free(st);
+	return 1;
+    }
+    else
+    {
+	mvfs_stat_free(st);
+	return 0;
+    }
+}
+
 #endif

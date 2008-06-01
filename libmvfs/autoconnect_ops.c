@@ -100,7 +100,7 @@ static LOOKUP _lookup_fs(ACFS_FS_PRIV* priv, const char* file)
     const char* type = mvfs_args_get(args,"type");
     const char* host = mvfs_args_get(args,"host");
     const char* port = mvfs_args_get(args,"port");
-    const char* path = strdup(mvfs_args_get(args,"path"));
+    const char* path = mvfs_args_get(args,"path");
 
     if (!path)	path = "/";
     if (!host)  host = "";
@@ -126,7 +126,7 @@ static LOOKUP _lookup_fs(ACFS_FS_PRIV* priv, const char* file)
 	    fprintf(stderr,"Autoconnect-FS: found an existing connection for: %s (%s)\n", file, buffer);
 #endif
 	    ret.fs       = p->fs;
-	    ret.filename = path;
+	    ret.filename = strdup(path);
 	    goto out;
 	}
     }
@@ -156,8 +156,7 @@ static LOOKUP _lookup_fs(ACFS_FS_PRIV* priv, const char* file)
     ret.filename = strdup(path);
 
 err:
-    if (path)
-	free(path);
+
 out:
     mvfs_args_free(args);
     return ret;

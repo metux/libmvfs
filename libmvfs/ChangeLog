@@ -1,4 +1,9 @@
 
+2008-06-01	Enrico Weigelt <weigelt@metux.de>
+
+    * metacache_fs: 	added some more sanity checks
+    * autoconnect_fs:	fixed buggy pathname handling
+
 2008-05-16	Enrico Weigelt <weigelt@metux.de>
 
     * added soname

@@ -171,8 +171,11 @@ static MVFS_STAT* mvfs_stat_from_unix(const char* name, struct stat s)
 	gid = gr->gr_name;
 
     MVFS_STAT* mstat = mvfs_stat_alloc(name, uid, gid);
-    mstat->mode = s.st_mode;
-    mstat->size = s.st_size;
+    mstat->mode  = s.st_mode;
+    mstat->size  = s.st_size;
+    mstat->atime = s.st_atime;
+    mstat->mtime = s.st_mtime;
+    mstat->ctime = s.st_ctime;
 
     return mstat;
 }
@@ -187,7 +190,7 @@ static MVFS_STAT* mvfs_hostfs_fileops_stat(MVFS_FILE* fp)
 	fp->fs->errcode = errno;
 	return NULL;
     }
-
+    
     return mvfs_stat_from_unix(PRIV_NAME(fp), ust);
 }
 
@@ -225,7 +228,7 @@ static MVFS_STAT* mvfs_hostfs_fsops_stat(MVFS_FILESYSTEM* fs, const char* name)
     }
 
     struct stat ust;
-    int ret = stat(name, &ust);
+    int ret = lstat(name, &ust);
 
     if (ret!=0)
     {
@@ -336,11 +339,9 @@ static MVFS_STAT* mvfs_hostfs_fileops_scan(MVFS_FILE* file)
     char buffer[4096];
     memset(buffer,0,sizeof(buffer));
     snprintf(buffer,sizeof(buffer)-1,"%s/%s", PRIV_NAME(file),ent->d_name);
-    stat(buffer,&st);
-    
-    MVFS_STAT* mstat = mvfs_stat_from_unix(ent->d_name, st);
-    
-    return mstat;
+    lstat(buffer,&st);
+
+    return mvfs_stat_from_unix(ent->d_name, st);
 }
 
 static int mvfs_hostfs_fileops_reset(MVFS_FILE* file)

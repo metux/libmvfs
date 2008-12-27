@@ -32,6 +32,24 @@
 
 #define FS_MAGIC 	"hostfs"
 
+#define ERRMSG(text...)	\
+    {						\
+	fprintf(stderr,"[ERR] ");		\
+	fprintf(stderr, __FUNCTION__);		\
+	fprintf(stderr,"() ");			\
+	fprintf(stderr,##text);			\
+	fprintf(stderr,"\n");			\
+    }
+
+#define DEBUGMSG(text...)	\
+    {						\
+	fprintf(stderr,"[DBG] ");		\
+	fprintf(stderr, __FUNCTION__);		\
+	fprintf(stderr,"() ");			\
+	fprintf(stderr,##text);			\
+	fprintf(stderr,"\n");			\
+    }
+
 static int        mvfs_hostfs_fileops_open    (MVFS_FILE* file, mode_t mode);
 static off64_t    mvfs_hostfs_fileops_seek    (MVFS_FILE* file, off64_t offset, int whence);
 static ssize_t    mvfs_hostfs_fileops_read    (MVFS_FILE* file, void* buf, size_t count);
@@ -66,12 +84,14 @@ static MVFS_FILE* mvfs_hostfs_fsops_open    (MVFS_FILESYSTEM* fs, const char* na
 static MVFS_STAT* mvfs_hostfs_fsops_stat    (MVFS_FILESYSTEM* fs, const char* name);
 static int        mvfs_hostfs_fsops_unlink  (MVFS_FILESYSTEM* fs, const char* name);
 static int        mvfs_hostfs_fsops_free    (MVFS_FILESYSTEM* fs);
+static int        mvfs_hostfs_fsops_mkdir   (MVFS_FILESYSTEM* file, const char* name, mode_t mode);
 
 static MVFS_FILESYSTEM_OPS hostfs_fsops = 
 {
     .openfile	= mvfs_hostfs_fsops_open,
     .unlink	= mvfs_hostfs_fsops_unlink,
-    .stat       = mvfs_hostfs_fsops_stat
+    .stat       = mvfs_hostfs_fsops_stat,
+    .mkdir      = mvfs_hostfs_fsops_mkdir
 };
 
 static off64_t mvfs_hostfs_fileops_seek (MVFS_FILE* file, off64_t offset, int whence)
@@ -125,14 +145,14 @@ static inline const char* __mvfs_flag2str(MVFS_FILE_FLAG f)
 
 static int mvfs_hostfs_fileops_setflag (MVFS_FILE* fp, MVFS_FILE_FLAG flag, long value)
 {
-    fprintf(stderr,"mvfs_hostfs_fileops_setflag() %s not supported\n", __mvfs_flag2str(flag));
+    ERRMSG("%s not supported", __mvfs_flag2str(flag));
     fp->errcode = EINVAL;
     return -1;
 }
 
 static int mvfs_hostfs_fileops_getflag (MVFS_FILE* fp, MVFS_FILE_FLAG flag, long* value)
 {
-    fprintf(stderr,"mvfs_hostfs_fileops_getflag() %s not supported\n", __mvfs_flag2str(flag));
+    ERRMSG("%s not supported", __mvfs_flag2str(flag));
     fp->errcode = EINVAL;
     return -1;
 }
@@ -187,13 +207,6 @@ static MVFS_FILE* mvfs_hostfs_fsops_open(MVFS_FILESYSTEM* fs, const char* name, 
     return file;
 }
 
-#define ERRMSG(text...)	\
-    {						\
-	fprintf(stderr, __FUNCTION__);		\
-	fprintf(stderr,"() ");			\
-	fprintf(stderr,##text);			\
-	fprintf(stderr,"\n");			\
-    }
 
 
 static MVFS_STAT* mvfs_hostfs_fsops_stat(MVFS_FILESYSTEM* fs, const char* name)
@@ -226,13 +239,26 @@ static MVFS_STAT* mvfs_hostfs_fsops_stat(MVFS_FILESYSTEM* fs, const char* name)
 static int mvfs_hostfs_fsops_unlink(MVFS_FILESYSTEM* fs, const char* name)
 {
     int ret = unlink(name);
+    
+    if ((ret != 0) && (errno == EISDIR))
+	ret = rmdir(name);
+	
+    if (ret == 0)
+	return 0;
+
     fs->errcode = errno;
     return errno;
 }
 
+static int mvfs_hostfs_fsops_mkdir(MVFS_FILESYSTEM* fs, const char* fn, mode_t mode)
+{
+    DEBUGMSG("fn=\"%s\"", fn);
+    return mkdir(fn,mode);
+}
+
 MVFS_FILESYSTEM* mvfs_hostfs_create(MVFS_HOSTFS_PARAM par)
 {
-    fprintf(stderr,"mvfs_hostfs_create() params currently ignored !\n");
+    DEBUGMSG("params currently ignored !");
     MVFS_FILESYSTEM* fs = mvfs_fs_alloc(hostfs_fsops,FS_MAGIC);
     return fs;
 }
@@ -242,7 +268,7 @@ MVFS_FILESYSTEM* mvfs_hostfs_create_args(MVFS_ARGS* args)
     const char* chroot = mvfs_args_get(args,"chroot");
     if ((chroot) && (strlen(chroot)) && (!strcmp(chroot,"/")))
     {
-	fprintf(stderr,"mvfs_hostfs: chroot not supported yet !\n");
+	ERRMSG("chroot not supported yet!");
 	return NULL;
     }
     
@@ -295,7 +321,7 @@ static MVFS_STAT* mvfs_hostfs_fileops_scan(MVFS_FILE* file)
     DIR* dir = mvfs_hostfs_fileops_init_dir(file);
     if (dir==NULL)
     {
-	fprintf(stderr,"mvfs_hostfs_fileops_scan() cannot get DIR* ptr\n");
+	ERRMSG("cannot get DIR* ptr");
 	return NULL;
     }
 
@@ -306,7 +332,15 @@ static MVFS_STAT* mvfs_hostfs_fileops_scan(MVFS_FILE* file)
     if ((strcmp(ent->d_name,".")==0) || (strcmp(ent->d_name,"..")==0))
 	return mvfs_hostfs_fileops_scan(file);
 
-    return mvfs_stat_alloc(ent->d_name, "none", "none");	// FIXME !
+    struct stat st;
+    char buffer[4096];
+    memset(buffer,0,sizeof(buffer));
+    snprintf(buffer,sizeof(buffer)-1,"%s/%s", PRIV_NAME(file),ent->d_name);
+    stat(buffer,&st);
+    
+    MVFS_STAT* mstat = mvfs_stat_from_unix(ent->d_name, st);
+    
+    return mstat;
 }
 
 static int mvfs_hostfs_fileops_reset(MVFS_FILE* file)
@@ -314,7 +348,7 @@ static int mvfs_hostfs_fileops_reset(MVFS_FILE* file)
     DIR* dir = mvfs_hostfs_fileops_init_dir(file);
     if (dir==NULL)
     {
-	fprintf(stderr,"mvfs_hostfs_fileops_reset() cannot get DIR* ptr\n");
+	ERRMSG("cannot get DIR* ptr");
 	return 0;
     }
     

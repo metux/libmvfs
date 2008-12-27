@@ -90,6 +90,9 @@ int mvfs_stat_free(MVFS_STAT*st)
 
 MVFS_STAT* mvfs_stat_dup(MVFS_STAT* oldst)
 {
+    if (oldst == NULL)
+	return NULL;
+
     MVFS_STAT* newst = mvfs_stat_alloc(oldst->name, oldst->uid, oldst->gid);
     newst->mode  = oldst->mode;
     newst->size  = oldst->size;

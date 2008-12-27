@@ -1,7 +1,7 @@
 /*
 
     mVFS API
-    
+
 */
 
 #ifndef __LIBMVFS_STAT_H
@@ -31,8 +31,11 @@ struct __mvfs_stat
     time_t      ctime;
 };
 
+/* Free an MVFS_STAT structure. - returns error on NULL ptr passed */
 int        mvfs_stat_free  (MVFS_STAT* st);
+/* Allocate a new MVFS_STAT structure, initialized w/ given parameters (copied) */
 MVFS_STAT* mvfs_stat_alloc (const char* name, const char* uid, const char* gid);
+/* Duplicate (copy) an given MVFS_STAT structure */
 MVFS_STAT* mvfs_stat_dup   (MVFS_STAT* st);
 
 // convert an MVFS_STAT to unix struct stat

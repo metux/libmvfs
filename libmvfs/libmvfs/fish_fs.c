@@ -80,6 +80,7 @@
 	fprintf(stderr,"\n");			\
     }
 
+#ifdef __DEBUG
 #define DEBUGMSG(text...)	\
     {						\
 	fprintf(stderr,"[DBG] ");		\
@@ -97,6 +98,9 @@
 	fprintf(stderr,##text);			\
 	fprintf(stderr,"\n");			\
     }
+#else
+#define DEBUGMSG(text...)
+#endif
 
 #define print_vfs_message(text...)
 
@@ -120,9 +124,15 @@ typedef struct fish_connection
 #define FISH_MAX_STAT	128
 typedef struct fish_file
 {
-    MVFS_STAT* stats[FISH_MAX_STAT];
-    int        scanpos;
-    int        statcount;
+    MVFS_STAT*  stats[FISH_MAX_STAT];
+    int         scanpos;
+    int         statcount;
+    const char* name;
+    long        size;
+    short       got_local_copy;
+    long	readpos;
+    char*       tmpname;
+    int         tmp_fd;
 } FISH_FILE;
 
 #define CLEARERR()	conn->error = 0;
@@ -482,132 +492,6 @@ fish_dir_uptodate(struct vfs_class *me, struct vfs_s_inode *ino)
 
 /*
 static int
-fish_dir_load(struct vfs_class *me, struct vfs_s_inode *dir, char *remote_path)
-{
-    struct vfs_s_super *super = dir->super;
-    char buffer[8192];
-    struct vfs_s_entry *ent = NULL;
-    FILE *logfile;
-    char *quoted_path;
-
-    logfile = MEDATA->logfile;
-
-    print_vfs_message(_("fish: Reading directory %s..."), remote_path);
-
-    gettimeofday(&dir->timestamp, NULL);
-    dir->timestamp.tv_sec += 10; // was 360: 10 is good for stressing direntry layer a bit
-    quoted_path = name_quote (remote_path, 0);
-    fish_command (conn, NULL, NONE,
-	    "#LIST /%s\n"
-	    "ls -lLa /%s 2>/dev/null | grep '^[^cbt]' | (\n"
-	      "while read p x u g s m d y n; do\n"
-	        "echo \"P$p $u.$g\nS$s\nd$m $d $y\n:$n\n\"\n"
-	      "done\n"
-	    ")\n"
-	    "ls -lLa /%s 2>/dev/null | grep '^[cb]' | (\n"
-	      "while read p x u g a i m d y n; do\n"
-	        "echo \"P$p $u.$g\nE$a$i\nd$m $d $y\n:$n\n\"\n"
-	      "done\n"
-	    ")\n"
-	    "echo '### 200'\n",
-	    remote_path, quoted_path, quoted_path);
-    g_free (quoted_path);
-    ent = vfs_s_generate_entry(me, NULL, dir, 0);
-    while (1) {
-	int res = vfs_s_get_line_interruptible (me, buffer, sizeof (buffer), conn->sockr); 
-	if ((!res) || (res == EINTR)) {
-	    vfs_s_free_entry(me, ent);
-	    me->verrno = ECONNRESET;
-	    goto error;
-	}
-	if (logfile) {
-	    fputs (buffer, logfile);
-            fputs ("\n", logfile);
-	    fflush (logfile);
-	}
-	if (!strncmp(buffer, "### ", 4))
-	    break;
-	if ((!buffer[0])) {
-	    if (ent->name) {
-		vfs_s_insert_entry(me, dir, ent);
-		ent = vfs_s_generate_entry(me, NULL, dir, 0);
-	    }
-	    continue;
-	}
-	
-#define ST ent->ino->st
-
-	switch(buffer[0]) {
-	case ':': {
-		      if (!strcmp(buffer+1, ".") || !strcmp(buffer+1, ".."))
-			  break;  // We'll do . and .. ourself
-		      ent->name = g_strdup(buffer+1); 
-		      break;
-	          }
-	case 'S':
-#ifdef HAVE_ATOLL
-	    ST.st_size = (off_t) atoll (buffer+1);
-#else
-	    ST.st_size = (off_t) atof (buffer+1);
-#endif
-	    break;
-	case 'P': {
-	              int i;
-		      if ((i = mvfs_decode_filetype(buffer[1])) ==-1)
-			  break;
-		      ST.st_mode = i; 
-		      if ((i = mvfs_decode_filemode(buffer+2)) ==-1)
-			  break;
-		      ST.st_mode |= i;
-		      if (S_ISLNK(ST.st_mode))
-			  ST.st_mode = 0;
-	          }
-	          break;
-	case 'd': {
-		      mvfs_split_text(buffer+1);
-		      if (!mvfs_decode_filedate(0, &ST.st_ctime))
-			  break;
-		      ST.st_atime = ST.st_mtime = ST.st_ctime;
-		  }
-	          break;
-	case 'D': {
-	              struct tm tim;
-		      if (sscanf(buffer+1, "%d %d %d %d %d %d", &tim.tm_year, &tim.tm_mon, 
-				 &tim.tm_mday, &tim.tm_hour, &tim.tm_min, &tim.tm_sec) != 6)
-			  break;
-		      ST.st_atime = ST.st_mtime = ST.st_ctime = mktime(&tim);
-	          }
-	          break;
-	case 'E': {
-	              int maj, min;
-	              if (sscanf(buffer+1, "%d,%d", &maj, &min) != 2)
-			  break;
-#ifdef HAVE_STRUCT_STAT_ST_RDEV
-		      ST.st_rdev = (maj << 8) | min;
-#endif
-	          }
-	case 'L': ent->ino->linkname = g_strdup(buffer+1);
-	          break;
-	}
-    }
-    
-    vfs_s_free_entry (me, ent);
-    me->verrno = E_REMOTE;
-    if (fish_decode_reply(buffer+4, 0) == COMPLETE) {
-	g_free (conn->cwdir);
-	conn->cwdir = g_strdup (remote_path);
-	print_vfs_message (_("%s: done."), me->name);
-	return 0;
-    }
-
-error:
-    print_vfs_message (_("%s: failure"), me->name);
-    return 1;
-}
-*/
-
-/*
-static int
 fish_file_store(struct vfs_class *me, struct vfs_s_fh *fh, char *name, char *localname)
 {
     struct vfs_s_super *super = FH_SUPER;
@@ -700,22 +584,35 @@ error_return:
     return -1;
 }
 */
-/*
-static int
-fish_linear_start (struct vfs_class *me, struct vfs_s_fh *fh, off_t offset)
+
+static int 
+fish_get_filesize (FISH_CONNECTION* conn, const char* filename)
 {
-    char *name;
-    char *quoted_name;
+    int ret = fish_command (conn, NULL, WANT_STRING,
+	"ls -l /%s 2>/dev/null | (\n"
+		  "read var1 var2 var3 var4 var5 var6\n"
+		  "echo \"$var5\"\n"
+		")\n"
+		"echo '### 100'\n", filename);
+    int size; 
+    if (sscanf( reply_str, "%d", &(size) )!=1)
+    {
+	ERRMSG("could not get filesize ...");
+	return -EREMOTE;
+    }
+    return size;
+}
+
+static int
+fish_copy2local (FISH_CONNECTION* conn, FISH_FILE* file, off_t offset)
+{
     if (offset)
-        ERRNOR (E_NOTSUPP, 0);
-    name = vfs_s_fullpath (me, fh->ino);
-    if (!name)
-	return 0;
-    quoted_name = name_quote (name, 0);
-    g_free (name);
-    name = quoted_name;
-    fh->u.fish.append = 0;
-    offset = fish_command (conn, NULL, FH_SUPER, WANT_STRING,
+	return -ENOTSUP;
+
+    char* name = strdup(file->name);
+    DEBUGMSG("Starting linear read transfer for: %s", name);
+
+    offset = fish_command (conn, NULL, WANT_STRING,
 		"#RETR /%s\n"
 		"ls -l /%s 2>/dev/null | (\n"
 		  "read var1 var2 var3 var4 var5 var6\n"
@@ -725,15 +622,52 @@ fish_linear_start (struct vfs_class *me, struct vfs_s_fh *fh, off_t offset)
 		"cat /%s\n"
 		"echo '### 200'\n", 
 		name, name, name );
-    g_free (name);
-    if (offset != PRELIM) ERRNOR (E_REMOTE, 0);
-    fh->linear = LS_LINEAR_OPEN;
-    fh->u.fish.got = 0;
-    if (sscanf( reply_str, "%d", &fh->u.fish.total )!=1)
-	ERRNOR (E_REMOTE, 0);
-    return 1;
+
+    if (offset != PRELIM) 
+    {
+	ERRMSG("something went wrong ... %d", offset);
+	return -EREMOTE;
+    }
+    if (sscanf( reply_str, "%d", &(file->size) )!=1)
+    {
+	ERRMSG("could not get filesize ...");
+	return -EREMOTE;
+    }
+    
+    {
+	char tmpbuf[1024];
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	sprintf(tmpbuf,"/tmp/mvfs-fish-%ld-%ld.tmp", tv.tv_sec, tv.tv_usec);
+	file->tmp_fd = open(tmpbuf, O_RDWR|O_CREAT);
+	file->tmpname = strdup(tmpbuf);
+    }
+
+    long pos = 0;
+    for (pos = 0; pos<file->size; )
+    {
+	long count = ((file->size-pos) > 1024 ? 1024 : (file->size-pos));
+	char buffer[1024];
+	count = read(conn->sockr, buffer, count);
+	write(file->tmp_fd, buffer, count);
+	pos+=count;
+    }
+
+    lseek(file->tmp_fd, 0, SEEK_SET);
+
+    {
+	char reply[4096];
+	if (fish_get_reply (conn, (char*)&reply, sizeof(reply)) != COMPLETE)
+	{
+//	    fprintf(stderr,"reply failed: %s\n", reply);
+	}
+//	else
+//	    fprintf(stderr,"reply ok: %s\n", reply);
+    }
+
+    return 0;
 }
-*/
+
 /*
 static void
 fish_linear_abort (struct vfs_class *me, struct vfs_s_fh *fh)
@@ -757,38 +691,7 @@ fish_linear_abort (struct vfs_class *me, struct vfs_s_fh *fh)
     else
         print_vfs_message( _("Aborted transfer would be successful.") );
 }
-*/
-/*
-static int
-fish_linear_read (struct vfs_class *me, struct vfs_s_fh *fh, void *buf, int len)
-{
-    struct vfs_s_super *super = FH_SUPER;
-    int n = 0;
-    len = MIN( fh->u.fish.total - fh->u.fish.got, len );
-    disable_interrupt_key();
-    while (len && ((n = read (conn->sockr, buf, len))<0)) {
-        if ((errno == EINTR) && !got_interrupt())
-	    continue;
-	break;
-    }
-    enable_interrupt_key();
 
-    if (n>0) fh->u.fish.got += n;
-    if (n<0) fish_linear_abort(me, fh);
-    if ((!n) && ((fish_get_reply (conn, NULL, 0) != COMPLETE)))
-        ERRNOR (E_REMOTE, -1);
-    ERRNOR (errno, n);
-}
-*/
-/*
-static void
-fish_linear_close (struct vfs_class *me, struct vfs_s_fh *fh)
-{
-    if (fh->u.fish.total != fh->u.fish.got)
-	fish_linear_abort(me, fh);
-}
-*/
-/*
 static int
 fish_ctl (void *fh, int ctlop, void *arg)
 {
@@ -826,6 +729,7 @@ fish_send_command(FISH_CONNECTION* conn, const char *cmd, int flags)
     if (r != COMPLETE) 
     {
 	conn->error = EREMOTEIO;
+	ERRMSG("remote command failed: \"%s\"", cmd);
 	return -1;
     }
 
@@ -1037,9 +941,6 @@ init_fish (void)
     fish_subclass.dir_load = fish_dir_load;
     fish_subclass.dir_uptodate = fish_dir_uptodate;
     fish_subclass.file_store = fish_file_store;
-    fish_subclass.linear_start = fish_linear_start;
-    fish_subclass.linear_read = fish_linear_read;
-    fish_subclass.linear_close = fish_linear_close;
 
     vfs_s_init_class (&vfs_fish_ops, &fish_subclass);
     vfs_fish_ops.name = "fish";
@@ -1049,9 +950,7 @@ init_fish (void)
     vfs_fish_ops.chown = fish_chown;
     vfs_fish_ops.symlink = fish_symlink;
     vfs_fish_ops.link = fish_link;
-    vfs_fish_ops.unlink = fish_unlink;
     vfs_fish_ops.rename = fish_rename;
-    vfs_fish_ops.mkdir = fish_mkdir;
     vfs_fish_ops.rmdir = fish_rmdir;
     vfs_fish_ops.ctl = fish_ctl;
     vfs_register_class (&vfs_fish_ops);
@@ -1103,17 +1002,52 @@ static MVFS_FILESYSTEM_OPS fishfs_fsops =
     .mkdir      = mvfs_fishfs_fsops_mkdir
 };
 
+#define FILEOP_HEAD		\
+    FISH_CONNECTION* conn = ((FISH_CONNECTION*)(file->fs->priv.ptr));	\
+    FISH_FILE*       ff   = ((FISH_FILE*)(file->priv.buffer));
+
+#define FSOP_HEAD		\
+    FISH_CONNECTION* conn = ((FISH_CONNECTION*)(fs->priv.ptr));
+
+static inline int __getlocal(MVFS_FILE* file)
+{
+    FILEOP_HEAD
+    if (ff->got_local_copy)
+	return 1;
+
+    DEBUGMSG("Fetching local copy of file: %s", ff->name);    
+    int ret;
+    if (ret = fish_copy2local(conn, ff, 0))
+    {
+	ERRMSG("failed with: %d\n", ret);
+	file->errcode = ret;
+	return 0;
+    }
+
+    ff->got_local_copy = 1;
+    return 1;
+}
+
 static off64_t mvfs_fishfs_fileops_seek (MVFS_FILE* file, off64_t offset, int whence)
 {
-    off_t ret = lseek(PRIV_FD(file), offset, whence);
+    FILEOP_HEAD
+
+    fprintf(stderr,"fileops_seek() off=%ld\n", offset);    
+    __getlocal(file);
+    off_t ret = lseek(ff->tmp_fd, offset, whence);
     file->errcode = errno;
     return ret;
 }
 
 static ssize_t mvfs_fishfs_fileops_read (MVFS_FILE* file, void* buf, size_t count)
 {
+    FILEOP_HEAD
+
+    fprintf(stderr,"fileops_read() count=%ld\n", count);
+
+    __getlocal(file);
     memset(buf, 0, count);
-    ssize_t s = read(PRIV_FD(file), buf, count);
+    ssize_t s = read(ff->tmp_fd, buf, count);
     file->errcode = errno;
     if (s==0)
 	file->priv.status = 1;
@@ -1128,9 +1062,9 @@ static ssize_t mvfs_fishfs_fileops_pread (MVFS_FILE* file, void* buf, size_t cou
 
 static ssize_t mvfs_fishfs_fileops_write (MVFS_FILE* file, const void* buf, size_t count)
 {
-    ssize_t s = write(PRIV_FD(file), buf, count);
-    file->errcode = errno;
-    return s;
+    ERRMSG("writing not supported yet");
+    file->errcode = ENOTSUP;
+    return -1;
 }
 
 static ssize_t mvfs_fishfs_fileops_pwrite (MVFS_FILE* file, const void* buf, size_t count, off64_t offset)
@@ -1206,11 +1140,11 @@ static MVFS_STAT* mvfs_fishfs_fileops_stat(MVFS_FILE* fp)
 static MVFS_FILE* mvfs_fishfs_fsops_open(MVFS_FILESYSTEM* fs, const char* name, mode_t mode)
 {
     int fd = open(name, mode);
-    if (fd<0)
-    {
-	fs->errcode = errno;
-	return NULL;
-    }
+//    if (fd<0)
+//    {
+//	fs->errcode = errno;
+//	return NULL;
+//    }
 
     MVFS_FILE* file = mvfs_file_alloc(fs,fishfs_fileops);
     file->priv.name = strdup(name);
@@ -1218,7 +1152,7 @@ static MVFS_FILE* mvfs_fishfs_fsops_open(MVFS_FILESYSTEM* fs, const char* name, 
     
     FISH_FILE* ff = (FISH_FILE*)calloc(1,sizeof(FISH_FILE));
     ff->scanpos   = -1;
-    ff->statcount = 0;
+    ff->name      = strdup(name);
     file->priv.buffer = (char*)ff;
 
     return file;
@@ -1253,11 +1187,13 @@ static MVFS_STAT* mvfs_fishfs_fsops_stat(MVFS_FILESYSTEM* fs, const char* name)
 
 static int mvfs_fishfs_fsops_unlink(MVFS_FILESYSTEM* fs, const char* name)
 {
-    int ret = unlink(name);
-    
+    FSOP_HEAD
+
+    int ret = fish_unlink(conn, name);
+
     if ((ret != 0) && (errno == EISDIR))
-	ret = rmdir(name);
-	
+	ret = fish_rmdir(conn, name);
+
     if (ret == 0)
 	return 0;
 
@@ -1267,8 +1203,8 @@ static int mvfs_fishfs_fsops_unlink(MVFS_FILESYSTEM* fs, const char* name)
 
 static int mvfs_fishfs_fsops_mkdir(MVFS_FILESYSTEM* fs, const char* fn, mode_t mode)
 {
-    DEBUGMSG("fn=\"%s\"", fn);
-    return mkdir(fn,mode);
+    FSOP_HEAD
+    return fish_mkdir(conn, fn, 0);
 }
 
 MVFS_FILESYSTEM* mvfs_fishfs_create_args(MVFS_ARGS* args)
@@ -1302,9 +1238,19 @@ MVFS_FILESYSTEM* mvfs_fishfs_create_args(MVFS_ARGS* args)
 
 static int mvfs_fishfs_fileops_close(MVFS_FILE* file)
 {
-    int ret = close(PRIV_FD(file));
+    FILEOP_HEAD
+    
+    close(PRIV_FD(file));
+    close(ff->tmp_fd);
+    if (ff->tmpname)
+    {
+	unlink(ff->tmpname);
+	free(ff->tmpname);
+	ff->tmpname = NULL;
+    }
     file->priv.id = -1;
-    return ret;
+    ff->tmp_fd = 0;
+    return 0;
 }
 
 static int mvfs_fishfs_fileops_eof(MVFS_FILE* file)
@@ -1325,13 +1271,9 @@ static MVFS_FILE* mvfs_fishfs_fileops_lookup  (MVFS_FILE* file, const char* name
     return file;
 }
 
-#define FSOP_HEAD		\
-    FISH_CONNECTION* conn = ((FISH_CONNECTION*)(file->fs->priv.ptr));	\
-    FISH_FILE*       ff   = ((FISH_FILE*)(file->priv.buffer));
-
 static int mvfs_fishfs_fileops_init_dir(MVFS_FILE* file)
 {
-    FSOP_HEAD
+    FILEOP_HEAD
 
     /* new scanning algo */
 
@@ -1342,7 +1284,7 @@ static int mvfs_fishfs_fileops_init_dir(MVFS_FILE* file)
 
     const char* remote_path = file->priv.name;
     const char* quoted_path = file->priv.name;
-	
+
     fish_command (conn, NULL, NONE,
 	    "#LIST /%s\n"
 	    "ls -lLa /%s 2>/dev/null | grep '^[^cbt]' | (\n"
@@ -1485,7 +1427,7 @@ static int mvfs_fishfs_fileops_init_dir(MVFS_FILE* file)
 
 static MVFS_STAT* mvfs_fishfs_fileops_scan(MVFS_FILE* file)
 {
-    FSOP_HEAD
+    FILEOP_HEAD
 
     mvfs_fishfs_fileops_init_dir(file);
 
@@ -1497,7 +1439,7 @@ static MVFS_STAT* mvfs_fishfs_fileops_scan(MVFS_FILE* file)
 
 static int mvfs_fishfs_fileops_reset(MVFS_FILE* file)
 {
-    FSOP_HEAD
+    FILEOP_HEAD
     mvfs_fishfs_fileops_init_dir(file);
     ff->scanpos = 0;
     return 1;

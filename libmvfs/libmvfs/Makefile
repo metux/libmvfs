@@ -3,6 +3,7 @@ SONAME=mvfs
 LIBC_NONSHARED=/usr/lib/libc_nonshared.a
 
 SRCNAMES  = sock_get_line	\
+	    util		\
 	    urlparse		\
 	    fileops 		\
 	    fsops		\

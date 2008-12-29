@@ -83,10 +83,15 @@ MVFS_ARGS* mvfs_args_from_url(const char* url)
     
     mvfs_args_set(args,"url",      url);
     mvfs_args_set(args,"path",     u->pathname);
-    mvfs_args_set(args,"hostname", u->hostname);
+    mvfs_args_set(args,"host",     u->hostname);
     mvfs_args_set(args,"port",     u->port);
     mvfs_args_set(args,"username", u->username);
     mvfs_args_set(args,"secret",   u->secret);
+
+    if ((!(u->type)) || (!(u->type[0])))
+	mvfs_args_set(args,"type", "local");
+    else
+	mvfs_args_set(args,"type", u->type);
 
     return args;
 }

@@ -53,6 +53,9 @@
 #include <mvfs/default_ops.h>
 #include <mvfs/hostfs.h>
 
+#include <sys/time.h>
+#include <time.h>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -86,7 +89,7 @@
 	fprintf(stderr,"\n");			\
     }
 
-#define print_vfs_message(text...)	\
+#define __print_vfs_message(text...)	\
     {						\
 	fprintf(stderr,"[VFS] ");		\
 	fprintf(stderr, __FUNCTION__);		\
@@ -95,18 +98,32 @@
 	fprintf(stderr,"\n");			\
     }
 
+#define print_vfs_message(text...)
+
 #define _(a)	a
 
 typedef struct fish_connection
 {
-    char* hostname;
-    char* path;
-    char* username;
+    const char* hostname;
+    const char* path;
+    const char* username;
+    const char* secret;
+    const char* url;
+    const char* port;
+    const char* cwdir;
     int   sockr;
     int   sockw;
     int   error;
     FILE* logfile;
 } FISH_CONNECTION;
+
+#define FISH_MAX_STAT	128
+typedef struct fish_file
+{
+    MVFS_STAT* stats[FISH_MAX_STAT];
+    int        scanpos;
+    int        statcount;
+} FISH_FILE;
 
 #define CLEARERR()	conn->error = 0;
 
@@ -245,40 +262,38 @@ fish_free_archive (FISH_CONNECTION* conn)
 	close (conn->sockr);
 	conn->sockw = conn->sockr = -1;
     }
-    if (conn->hostname) { free(conn->hostname); conn->hostname = NULL; }
-    if (conn->username) { free(conn->username); conn->username = NULL; }
-    if (conn->path)     { free(conn->path);     conn->path     = NULL; }
+//    if (conn->hostname) { free(conn->hostname); conn->hostname = NULL; }
+//    if (conn->username) { free(conn->username); conn->username = NULL; }
+//    if (conn->path)     { free(conn->path);     conn->path     = NULL; }
 
-//    g_free (SUP.host);
-//    g_free (SUP.user);
-//    g_free (SUP.cwdir);
-//    g_free (SUP.password);
+    conn->hostname = NULL;
+    conn->username = NULL;
+    conn->path     = NULL;
 }
 
-/*
 static void
-fish_pipeopen(struct vfs_s_super *super, const char *path, const char *argv[])
+fish_pipeopen(FISH_CONNECTION* conn, const char *path, const char *argv[])
 {
     int fileset1[2], fileset2[2];
     int res;
 
     if ((pipe(fileset1)<0) || (pipe(fileset2)<0)) 
     {
-	fprintf(stderr,"fishfs: Cannot pipe()");
+	ERRMSG("fishfs: Cannot pipe()");
 	return;
     }
 
     if ((res = fork())) {
         if (res<0) 
 	{
-	    fprintf(stderr,"fishfs: Cannot fork(): %m.");
+	    ERRMSG("fishfs: Cannot fork(): %m.");
 	    return;
 	}
 	// We are the parent
 	close(fileset1[0]);
-	SUP.sockw = fileset1[1];
+	conn->sockw = fileset1[1];
 	close(fileset2[1]);
-	SUP.sockr = fileset2[0];
+	conn->sockr = fileset2[0];
     } else {
         close(0);
 	dup(fileset1[0]);
@@ -288,14 +303,13 @@ fish_pipeopen(struct vfs_s_super *super, const char *path, const char *argv[])
 	// stderr to /dev/null
 	open ("/dev/null", O_WRONLY);
 	close(fileset2[0]); close(fileset2[1]);
-	execvp(path, const_cast(char **, argv));
+	execvp(path, (char **)argv);
 	_exit(3);
     }
 }
-*/
 
 /* The returned directory should always contain a trailing slash */
-static char *fish_getcwd(FISH_CONNECTION* conn)
+static inline char *fish_getcwd(FISH_CONNECTION* conn)
 {
     if (fish_command (conn, NULL, WANT_STRING, "#PWD\npwd; echo '### 200'\n") == COMPLETE)
     {
@@ -306,34 +320,39 @@ static char *fish_getcwd(FISH_CONNECTION* conn)
     return NULL;
 }
 
-/*
+
 static int
-fish_open_archive_int (struct vfs_class *me, struct vfs_s_super *super)
+fish_connect(FISH_CONNECTION* conn)
 {
     {
 	const char *argv[10];
-	const char *xsh = (SUP.flags == FISH_FLAG_RSH ? "rsh" : "ssh");
+//	const char *xsh = (conn->flags == FISH_FLAG_RSH ? "rsh" : "ssh");
+	const char* xsh = "ssh";
 	int i = 0;
 
 	argv[i++] = xsh;
 #ifdef HAVE_HACKED_SSH
 	argv[i++] = "-I";
 #endif
-	if (SUP.flags == FISH_FLAG_COMPRESSED)
-	    argv[i++] = "-C";
+//	if (conn->flags == FISH_FLAG_COMPRESSED)
+//	    argv[i++] = "-C";
 	argv[i++] = "-l";
-	argv[i++] = SUP.user;
-	argv[i++] = SUP.host;
+	argv[i++] = conn->username;
+	argv[i++] = conn->hostname;
 	argv[i++] = "echo FISH:; /bin/sh";
 	argv[i++] = NULL;
 
-	fish_pipeopen (super, xsh, argv);
+	fish_pipeopen (conn, xsh, argv);
     }
     {
 	char answer[2048];
 	print_vfs_message (_("fish: Waiting for initial line..."));
-	if (!vfs_s_get_line (me, SUP.sockr, answer, sizeof (answer), ':'))
-	    ERRNOR (E_PROTO, -1);
+	if (!__mvfs_sock_get_line (conn->logfile, conn->sockr, answer, sizeof (answer), ':'))
+	{
+	    ERRMSG("Fish: protocol error (1)\n");
+	    return -1;
+	}
+
 	print_vfs_message ("%s", answer);
 	if (strstr (answer, "assword")) {
 
@@ -341,24 +360,19 @@ fish_open_archive_int (struct vfs_class *me, struct vfs_s_super *super)
 	    //   /dev/tty, not from stdin :-(. 
 
 #ifndef HAVE_HACKED_SSH
-	    message (1, MSG_ERROR,
-		     _
-		     ("Sorry, we cannot do password authenticated connections for now."));
-	    ERRNOR (EPERM, -1);
+//	    message (1, MSG_ERROR,
+//		     _
+//		     ("Sorry, we cannot do password authenticated connections for now."));
+	    ERRMSG("Sorry, we cant to password authentication for now :(\n");
+	    return -EPERM;
 #endif
-	    if (!SUP.password) {
-		char *p, *op;
-		p = g_strconcat (_(" fish: Password required for "),
-				 SUP.user, " ", (char *) NULL);
-		op = vfs_get_password (p);
-		g_free (p);
-		if (op == NULL)
-		    ERRNOR (EPERM, -1);
-		SUP.password = op;
+	    if (!conn->secret) {
+		ERRMSG("Password required\n");
+		return -EPERM;
 	    }
 	    print_vfs_message (_("fish: Sending password..."));
-	    write (SUP.sockw, SUP.password, strlen (SUP.password));
-	    write (SUP.sockw, "\n", 1);
+	    write (conn->sockw, conn->secret, strlen (conn->secret));
+	    write (conn->sockw, "\n", 1);
 	}
     }
 
@@ -371,13 +385,19 @@ fish_open_archive_int (struct vfs_class *me, struct vfs_s_super *super)
 	(conn, NULL, WAIT_REPLY,
 	 "#FISH\necho; start_fish_server 2>&1; echo '### 200'\n") !=
 	COMPLETE)
-	ERRNOR (E_PROTO, -1);
-
-    print_vfs_message (_("fish: Handshaking version..."));
+    {
+	ERRMSG("protocol error - required 200\n");
+	return -EPROTO;
+    }
+    
+    DEBUGMSG("fish: Handshaking version...");
     if (fish_command
 	(conn, NULL, WAIT_REPLY,
 	 "#VER 0.0.0\necho '### 000'\n") != COMPLETE)
-	ERRNOR (E_PROTO, -1);
+    {
+	ERRMSG("protocol error - required version string\n");
+	return -EPROTO;
+    }
 
     // Set up remote locale to C, otherwise dates cannot be recognized 
     if (fish_command
@@ -385,23 +405,18 @@ fish_open_archive_int (struct vfs_class *me, struct vfs_s_super *super)
 	 "LANG=C; LC_ALL=C; LC_TIME=C\n"
 	 "export LANG; export LC_ALL; export LC_TIME\n" "echo '### 200'\n")
 	!= COMPLETE)
-	ERRNOR (E_PROTO, -1);
+    {
+	ERRMSG("protocol error - cannot set locale\n");
+	return -EPROTO;
+    }
 
     print_vfs_message (_("fish: Setting up current directory..."));
-    SUP.cwdir = fish_getcwd (me, super);
-    print_vfs_message (_("fish: Connected, home %s."), SUP.cwdir);
-#if 0
-    super->name =
-	g_strconcat ("/#sh:", SUP.user, "@", SUP.host, "/", (char *) NULL);
-#endif
-    super->name = g_strdup (PATH_SEP_STR);
+    conn->cwdir = strdup(fish_getcwd (conn));
+    print_vfs_message (_("fish: Connected, home %s."), conn->cwdir);
 
-    super->root =
-	vfs_s_new_inode (me, super,
-			 vfs_s_default_stat (me, S_IFDIR | 0755));
+    ERRMSG("fish connected\n");
     return 0;
 }
-*/
 
 /*
 static int
@@ -416,14 +431,14 @@ fish_open_archive (struct vfs_class *me, struct vfs_s_super *super,
 
     g_free (p);
 
-    SUP.host = host;
-    SUP.user = user;
-    SUP.flags = flags;
+    conn->host = host;
+    conn->user = user;
+    conn->flags = flags;
     if (!strncmp (op, "rsh:", 4))
-	SUP.flags |= FISH_FLAG_RSH;
-    SUP.cwdir = NULL;
+	conn->flags |= FISH_FLAG_RSH;
+    conn->cwdir = NULL;
     if (password)
-	SUP.password = password;
+	conn->password = password;
     return fish_open_archive_int (me, super);
 }
 */
@@ -440,8 +455,8 @@ fish_archive_same (struct vfs_class *me, struct vfs_s_super *super,
 
     g_free (op);
 
-    flags = ((strcmp (host, SUP.host) == 0)
-	     && (strcmp (user, SUP.user) == 0) && (flags == SUP.flags));
+    flags = ((strcmp (host, conn->host) == 0)
+	     && (strcmp (user, conn->user) == 0) && (flags == conn->flags));
     g_free (host);
     g_free (user);
 
@@ -499,7 +514,7 @@ fish_dir_load(struct vfs_class *me, struct vfs_s_inode *dir, char *remote_path)
     g_free (quoted_path);
     ent = vfs_s_generate_entry(me, NULL, dir, 0);
     while (1) {
-	int res = vfs_s_get_line_interruptible (me, buffer, sizeof (buffer), SUP.sockr); 
+	int res = vfs_s_get_line_interruptible (me, buffer, sizeof (buffer), conn->sockr); 
 	if ((!res) || (res == EINTR)) {
 	    vfs_s_free_entry(me, ent);
 	    me->verrno = ECONNRESET;
@@ -538,10 +553,10 @@ fish_dir_load(struct vfs_class *me, struct vfs_s_inode *dir, char *remote_path)
 	    break;
 	case 'P': {
 	              int i;
-		      if ((i = vfs_parse_filetype(buffer[1])) ==-1)
+		      if ((i = mvfs_decode_filetype(buffer[1])) ==-1)
 			  break;
 		      ST.st_mode = i; 
-		      if ((i = vfs_parse_filemode(buffer+2)) ==-1)
+		      if ((i = mvfs_decode_filemode(buffer+2)) ==-1)
 			  break;
 		      ST.st_mode |= i;
 		      if (S_ISLNK(ST.st_mode))
@@ -549,8 +564,8 @@ fish_dir_load(struct vfs_class *me, struct vfs_s_inode *dir, char *remote_path)
 	          }
 	          break;
 	case 'd': {
-		      vfs_split_text(buffer+1);
-		      if (!vfs_parse_filedate(0, &ST.st_ctime))
+		      mvfs_split_text(buffer+1);
+		      if (!mvfs_decode_filedate(0, &ST.st_ctime))
 			  break;
 		      ST.st_atime = ST.st_mtime = ST.st_ctime;
 		  }
@@ -579,8 +594,8 @@ fish_dir_load(struct vfs_class *me, struct vfs_s_inode *dir, char *remote_path)
     vfs_s_free_entry (me, ent);
     me->verrno = E_REMOTE;
     if (fish_decode_reply(buffer+4, 0) == COMPLETE) {
-	g_free (SUP.cwdir);
-	SUP.cwdir = g_strdup (remote_path);
+	g_free (conn->cwdir);
+	conn->cwdir = g_strdup (remote_path);
 	print_vfs_message (_("%s: done."), me->name);
 	return 0;
     }
@@ -661,7 +676,7 @@ fish_file_store(struct vfs_class *me, struct vfs_s_fh *fh, char *name, char *loc
 	}
 	if (n == 0)
 	    break;
-    	if ((t = write (SUP.sockw, buffer, n)) != n) {
+    	if ((t = write (conn->sockw, buffer, n)) != n) {
 	    if (t == -1) {
 		me->verrno = errno;
 	    } else { 
@@ -731,7 +746,7 @@ fish_linear_abort (struct vfs_class *me, struct vfs_s_fh *fh)
     do {
 	n = MIN(8192, fh->u.fish.total - fh->u.fish.got);
 	if (n) {
-	    if ((n = read(SUP.sockr, buffer, n)) < 0)
+	    if ((n = read(conn->sockr, buffer, n)) < 0)
 	        return;
 	    fh->u.fish.got += n;
 	}
@@ -751,7 +766,7 @@ fish_linear_read (struct vfs_class *me, struct vfs_s_fh *fh, void *buf, int len)
     int n = 0;
     len = MIN( fh->u.fish.total - fh->u.fish.got, len );
     disable_interrupt_key();
-    while (len && ((n = read (SUP.sockr, buf, len))<0)) {
+    while (len && ((n = read (conn->sockr, buf, len))<0)) {
         if ((errno == EINTR) && !got_interrupt())
 	    continue;
 	break;
@@ -785,7 +800,7 @@ fish_ctl (void *fh, int ctlop, void *arg)
 
 		if (!FH->linear)
 		{
-		    fprintf(stderr,"You may not do this");
+		    ERRMSG("You may not do this");
 		    return -1;
 		}
 		if (FH->linear == LS_LINEAR_CLOSED)
@@ -970,7 +985,7 @@ fish_fh_open (struct vfs_class *me, struct vfs_s_fh *fh, int flags,
 	    return -1;
     if (!fh->ino->localname)
     {
-	fprintf(stderr,"retrieve_file failed to fill in localname");
+	ERRMSG("retrieve_file failed to fill in localname");
 	return -1;
     }
     return 0;
@@ -985,7 +1000,7 @@ fish_fill_names (struct vfs_class *me, fill_names_f func)
     char *name;
     
     while (super){
-	switch (SUP.flags & (FISH_FLAG_RSH | FISH_FLAG_COMPRESSED)) {
+	switch (conn->flags & (FISH_FLAG_RSH | FISH_FLAG_COMPRESSED)) {
 	case FISH_FLAG_RSH:
 		flags = ":r";
 		break;
@@ -1000,8 +1015,8 @@ fish_fill_names (struct vfs_class *me, fill_names_f func)
 		break;
 	}
 
-	name = g_strconcat ("/#sh:", SUP.user, "@", SUP.host, flags,
-			    "/", SUP.cwdir, (char *) NULL);
+	name = g_strconcat ("/#sh:", conn->user, "@", conn->host, flags,
+			    "/", conn->cwdir, (char *) NULL);
 	(*func)(name);
 	g_free (name);
 	super = super->next;
@@ -1201,6 +1216,11 @@ static MVFS_FILE* mvfs_fishfs_fsops_open(MVFS_FILESYSTEM* fs, const char* name, 
     file->priv.name = strdup(name);
     file->priv.id   = fd;
     
+    FISH_FILE* ff = (FISH_FILE*)calloc(1,sizeof(FISH_FILE));
+    ff->scanpos   = -1;
+    ff->statcount = 0;
+    file->priv.buffer = (char*)ff;
+
     return file;
 }
 
@@ -1262,13 +1282,21 @@ MVFS_FILESYSTEM* mvfs_fishfs_create_args(MVFS_ARGS* args)
     
     MVFS_FILESYSTEM* fs = mvfs_fs_alloc(fishfs_fsops, FS_MAGIC);
 
-    const char* url  = mvfs_args_get(args,"url");
-    const char* type = mvfs_args_get(args,"type");
-    const char* host = mvfs_args_get(args,"host");
-    const char* port = mvfs_args_get(args,"port");
+    FISH_CONNECTION* conn = (FISH_CONNECTION*)calloc(1,sizeof(FISH_CONNECTION));
+    conn->hostname = mvfs_args_get(args,"host");
+    conn->username = mvfs_args_get(args,"username");
+    conn->secret   = mvfs_args_get(args,"secret");
+    conn->path     = mvfs_args_get(args,"path");
+    conn->url      = mvfs_args_get(args,"url");
+    conn->port     = mvfs_args_get(args,"port");
 
-    fprintf(stderr,"FishFS: initializing ...\n");
-    fprintf(stderr,"url=%s\ntype=%s\nhost=%s\nport=%s\n", url, type, host, port);
+    DEBUGMSG("FishFS: initializing ...\n");
+    DEBUGMSG("url=%s\nhost=%s\nport=%s\npath=%s\n", conn->url, conn->hostname, conn->port, conn->path);
+
+    fish_connect(conn);
+
+    fs->priv.ptr = conn;
+
     return fs;
 }
 
@@ -1297,55 +1325,180 @@ static MVFS_FILE* mvfs_fishfs_fileops_lookup  (MVFS_FILE* file, const char* name
     return file;
 }
 
-static DIR* mvfs_fishfs_fileops_init_dir(MVFS_FILE* file)
+#define FSOP_HEAD		\
+    FISH_CONNECTION* conn = ((FISH_CONNECTION*)(file->fs->priv.ptr));	\
+    FISH_FILE*       ff   = ((FISH_FILE*)(file->priv.buffer));
+
+static int mvfs_fishfs_fileops_init_dir(MVFS_FILE* file)
 {
-    DIR* dir = PRIV_DIRP(file);
-    if (dir != NULL)
-	return dir;
-    
-    dup(PRIV_FD(file));
+    FSOP_HEAD
 
-    dir = fdopendir(1);
+    /* new scanning algo */
 
-    dir = fdopendir(dup(PRIV_FD(file)));
-    PRIV_SET_DIRP(file,dir);
-    return dir;
+    if (ff->scanpos != -1)
+    {
+	return 0;
+    }
+
+    const char* remote_path = file->priv.name;
+    const char* quoted_path = file->priv.name;
+	
+    fish_command (conn, NULL, NONE,
+	    "#LIST /%s\n"
+	    "ls -lLa /%s 2>/dev/null | grep '^[^cbt]' | (\n"
+	      "while read p x u g s m d y n; do\n"
+	        "echo \"P$p $u.$g\nS$s\nd$m $d $y\n:$n\n\"\n"
+	      "done\n"
+	    ")\n"
+	    "ls -lLa /%s 2>/dev/null | grep '^[cb]' | (\n"
+	      "while read p x u g a i m d y n; do\n"
+	        "echo \"P$p $u.$g\nE$a$i\nd$m $d $y\n:$n\n\"\n"
+	      "done\n"
+	    ")\n"
+	    "echo '### 200'\n",
+	    remote_path, quoted_path, quoted_path);
+
+    char buffer[8192];
+    MVFS_STAT* curstat = ff->stats[0] = mvfs_stat_alloc("<unknown>", "<nobody>", "<nogroup>");
+    ff->statcount = 0;
+
+    while (1) 
+    {
+	int res = __mvfs_sock_get_line(conn->logfile, conn->sockr, buffer, sizeof (buffer), '\n');
+
+	if ((!res) || (res == EINTR))
+	{
+	    ERRMSG("connection reset or interrupted\n");
+	    return -1;
+	}
+
+	if (conn->logfile) 
+	{
+	    fputs (buffer, conn->logfile);
+            fputs ("\n", conn->logfile);
+	    fflush (conn->logfile);
+	}
+
+	if (!strncmp(buffer, "### ", 4))
+	    break;
+
+	if ((!buffer[0])) 
+	{
+	    // silently ignore . and .. 
+	    if ((curstat->name) && (strcmp(curstat->name,".")) && (strcmp(curstat->name,"..")))
+	    {
+		
+		ff->statcount++;
+		ff->stats[ff->statcount] = curstat = mvfs_stat_alloc("<unknown>", "<nobody>", "<nogroup>");
+	    }
+	    continue;
+	}
+
+	switch(buffer[0]) 
+	{
+	    case ':': 
+	    {
+		curstat->name = strdup(buffer+1);
+		break;
+	    }
+	    case 'S':
+#ifdef HAVE_ATOLL
+		curstat->size = (off_t) atoll (buffer+1);
+#else
+		curstat->size = (off_t) atof (buffer+1);
+#endif
+	    break;
+	    case 'P': 
+	    {
+	        int i;
+		if ((i = mvfs_decode_filetype(buffer[1])) ==-1)
+		    break;
+		curstat->mode = i; 
+		if ((i = mvfs_decode_filemode(buffer+2)) ==-1)
+		    break;
+		curstat->mode |= i;
+		if (S_ISLNK(curstat->mode))
+		    curstat->mode = 0;
+		    
+		// now fetch the username and groupname
+		char* p1 = strchr(buffer,' ');
+		if (p1)
+		{
+		    while ((*p1)==' ')
+			p1++;
+		
+		    char* p2 = strchr(p1, '.');
+		    if (p2)
+		    {
+			*p2 = 0;
+			p2++;
+			curstat->gid = strdup(p2);
+		    }
+		    curstat->uid = strdup(p1);
+		}
+	    }
+	    break;
+	    case 'd': 
+	    {
+		mvfs_split_text(buffer+1);
+		if (!mvfs_decode_filedate(0, &curstat->ctime))
+		    break;
+		curstat->atime = curstat->mtime = curstat->ctime;
+	    }
+	    break;
+	    case 'D': 
+	    {
+		struct tm tim;
+		if (sscanf(buffer+1, "%d %d %d %d %d %d", &tim.tm_year, &tim.tm_mon, 
+			 &tim.tm_mday, &tim.tm_hour, &tim.tm_min, &tim.tm_sec) != 6)
+		    break;
+		curstat->atime = curstat->mtime = curstat->ctime = mktime(&tim);
+	    }
+	    break;
+	    case 'E': 
+	    {
+		int maj, min;
+	        if (sscanf(buffer+1, "%d,%d", &maj, &min) != 2)
+		    break;
+#ifdef HAVE_STRUCT_STAT_ST_RDEV
+		curstat->rdev = (maj << 8) | min;
+#endif
+	    }
+	    case 'L': 
+		ERRMSG("skipping linkname: %s\n", (buffer+1));
+	    break;
+	}
+    }
+
+    if (fish_decode_reply(buffer+4, 0) == COMPLETE) 
+    {
+	free (conn->cwdir);
+	conn->cwdir = strdup (remote_path);
+	print_vfs_message (_("%s: done."), remote_path);
+	ff->scanpos = 0;
+	return 0;
+    }
+
+    print_vfs_message (_("%s: failure"), remote_path);
+    return 1;
 }
 
 static MVFS_STAT* mvfs_fishfs_fileops_scan(MVFS_FILE* file)
 {
-    DIR* dir = mvfs_fishfs_fileops_init_dir(file);
-    if (dir==NULL)
-    {
-	ERRMSG("cannot get DIR* ptr");
+    FSOP_HEAD
+
+    mvfs_fishfs_fileops_init_dir(file);
+
+    if ((ff->scanpos != -1) && (ff->scanpos<ff->statcount))
+	return mvfs_stat_dup(ff->stats[ff->scanpos++]);
+    else
 	return NULL;
-    }
-
-    struct dirent * ent = readdir(dir);
-    if (ent == NULL)
-	return 0;
-
-    if ((strcmp(ent->d_name,".")==0) || (strcmp(ent->d_name,"..")==0))
-	return mvfs_fishfs_fileops_scan(file);
-
-    struct stat st;
-    char buffer[4096];
-    memset(buffer,0,sizeof(buffer));
-    snprintf(buffer,sizeof(buffer)-1,"%s/%s", PRIV_NAME(file),ent->d_name);
-    lstat(buffer,&st);
-
-    return mvfs_stat_from_unix(ent->d_name, st);
 }
 
 static int mvfs_fishfs_fileops_reset(MVFS_FILE* file)
 {
-    DIR* dir = mvfs_fishfs_fileops_init_dir(file);
-    if (dir==NULL)
-    {
-	ERRMSG("cannot get DIR* ptr");
-	return 0;
-    }
-    
-    rewinddir(dir);
+    FSOP_HEAD
+    mvfs_fishfs_fileops_init_dir(file);
+    ff->scanpos = 0;
     return 1;
 }

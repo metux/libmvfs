@@ -5,6 +5,8 @@ int __mvfs_sock_get_line (FILE* logfile, int sock, char *buf, int buf_len, char 
     int i, status;
     char c;
 
+//    fprintf(stderr,"__mvfs_sock_get_line: reading from socket %d (%d bytes) - term \"%c\"\n", sock, buf_len, term);
+
     for (i = 0; i < buf_len - 1; i++, buf++){
 	if (read (sock, buf, sizeof(char)) <= 0)
 	    return 0;

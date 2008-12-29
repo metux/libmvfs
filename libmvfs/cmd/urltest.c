@@ -18,8 +18,10 @@ int test_url(const char* url)
     free(u);
 }
 
-int main()
+int main(int argc, char* argv[])
 {
+    if (!argc)
+    {
     test_url("9p://localhost:999");
     test_url("http://www.metux.de/");
     test_url("http://foo@thur.de/");
@@ -28,4 +30,7 @@ int main()
     test_url("file://");
     test_url("fish://user:pass@server/blah/tmp/");
     test_url("/var/tmp/foo/bar");
+    }
+    else
+	test_url(argv[1]);
 }

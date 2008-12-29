@@ -2,7 +2,21 @@
 SONAME=mvfs
 LIBC_NONSHARED=/usr/lib/libc_nonshared.a
 
-SRCNAMES  = default_ops fileops hostfs_ops mixp_ops fsops dirops rostring_ops propertylist_ops strmode arglist autoconnect_ops metacache_fs
+SRCNAMES  = sock_get_line	\
+	    urlparse		\
+	    fileops 		\
+	    fsops		\
+	    strmode		\
+	    arglist		\
+	    default_ops 	\
+	    hostfs_ops 		\
+	    mixp_ops 		\
+	    rostring_ops 	\
+	    propertylist_ops 	\
+	    autoconnect_ops 	\
+	    metacache_fs 	\
+	    fish_fs
+
 NOPIC_OBJ = $(addsuffix .nopic.o, $(SRCNAMES))
 PIC_OBJ   = $(addsuffix .pic.o, $(SRCNAMES))
 UNO_OBJ   = $(addsuffix .uno, $(SRCNAMES))

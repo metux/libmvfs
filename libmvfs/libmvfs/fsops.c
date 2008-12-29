@@ -3,6 +3,7 @@
 #include <mvfs/default_ops.h>
 #include <mvfs/hostfs.h>
 #include <mvfs/mixpfs.h>
+#include <mvfs/fishfs.h>
 
 #include <errno.h>
 #include <stdio.h>
@@ -94,7 +95,9 @@ MVFS_FILESYSTEM* mvfs_fs_create_args(MVFS_ARGS* args)
 	return mvfs_hostfs_create_args(args);
     if ((strcmp(type,"ninep")==0) || (strcmp(type,"9p")==0))
 	return mvfs_mixpfs_create_args(args);
-    
+    if (strcmp(type,"fish")==0)
+	return mvfs_fishfs_create_args(args);
+
     fprintf(stderr,"mvfs_fs_create() unsupported type \"%s\"\n", type);
     return NULL;
 }

@@ -62,14 +62,14 @@ MVFS_URL* mvfs_url_parse(const char* u)
     }
 
     // parse the host spec ...
-    // do we have some @ ? - then cut out the username(+password)
+    // do we have some @ ? - then cut out the username(+secret)
     if (ptr2 = strchr(ptr1,'@'))
     {
 	(*ptr2) = 0;
-	if (url->password = strchr(ptr1,':'))	// got username + password
+	if (url->secret = strchr(ptr1,':'))	// got username + secret
 	{
-	    (*url->password) = 0;
-	    url->password++;
+	    (*url->secret) = 0;
+	    url->secret++;
 	}
 	url->username = ptr1;
 	ptr1 = ptr2+1;

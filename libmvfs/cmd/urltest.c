@@ -10,7 +10,7 @@ int test_url(const char* url)
     printf("hostname: %s\n", u->hostname);
     printf("port:     %s\n", u->port);
     printf("username: %s\n", u->username);
-    printf("password: %s\n", u->password);
+    printf("secret:   %s\n", u->secret);
     printf("pathname: %s\n", u->pathname);
     printf("error:    %d\n", u->error);
     printf("----\n");

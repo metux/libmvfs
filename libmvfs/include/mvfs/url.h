@@ -16,7 +16,7 @@ typedef struct __mvfs_url
     char* port;
     char* type;
     char* username;
-    char* password;
+    char* secret;
     char* pathname;
 } MVFS_URL;
 

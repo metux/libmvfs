@@ -72,20 +72,22 @@ static MVFS_FILE_OPS hostfs_fileops =
     .stat	= mvfs_hostfs_fileops_stat
 };
 
-static MVFS_FILE* mvfs_hostfs_fsops_open    (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
-static MVFS_STAT* mvfs_hostfs_fsops_stat    (MVFS_FILESYSTEM* fs, const char* name);
-static int        mvfs_hostfs_fsops_unlink  (MVFS_FILESYSTEM* fs, const char* name);
-static int        mvfs_hostfs_fsops_free    (MVFS_FILESYSTEM* fs);
-static int        mvfs_hostfs_fsops_mkdir   (MVFS_FILESYSTEM* file, const char* name, mode_t mode);
-static int        mvfs_hostfs_fsops_chmod   (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
+static MVFS_FILE*   mvfs_hostfs_fsops_open     (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
+static MVFS_STAT*   mvfs_hostfs_fsops_stat     (MVFS_FILESYSTEM* fs, const char* name);
+static int          mvfs_hostfs_fsops_unlink   (MVFS_FILESYSTEM* fs, const char* name);
+static int          mvfs_hostfs_fsops_free     (MVFS_FILESYSTEM* fs);
+static int          mvfs_hostfs_fsops_mkdir    (MVFS_FILESYSTEM* file, const char* name, mode_t mode);
+static int          mvfs_hostfs_fsops_chmod    (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
+static MVFS_SYMLINK mvfs_hostfs_fsops_readlink (MVFS_FILESYSTEM* fs, const char* path);
 
 static MVFS_FILESYSTEM_OPS hostfs_fsops = 
 {
-    .openfile	= mvfs_hostfs_fsops_open,
-    .unlink	= mvfs_hostfs_fsops_unlink,
-    .stat       = mvfs_hostfs_fsops_stat,
-    .mkdir      = mvfs_hostfs_fsops_mkdir,
-    .chmod      = mvfs_hostfs_fsops_chmod
+    .openfile = mvfs_hostfs_fsops_open,
+    .unlink   = mvfs_hostfs_fsops_unlink,
+    .stat     = mvfs_hostfs_fsops_stat,
+    .mkdir    = mvfs_hostfs_fsops_mkdir,
+    .chmod    = mvfs_hostfs_fsops_chmod,
+    .readlink = mvfs_hostfs_fsops_readlink
 };
 
 static off64_t mvfs_hostfs_fileops_seek (MVFS_FILE* file, off64_t offset, int whence)
@@ -353,4 +355,14 @@ static int mvfs_hostfs_fileops_reset(MVFS_FILE* file)
 static int mvfs_hostfs_fsops_chmod(MVFS_FILESYSTEM* fs, const char* name, mode_t mode)
 {
     return chmod(name, mode);
+}
+
+static MVFS_SYMLINK mvfs_hostfs_fsops_readlink(MVFS_FILESYSTEM* fs, const char* path)
+{
+    MVFS_SYMLINK link;
+    if (readlink(path, (char*)&link.target, sizeof(link.target)) == -1)
+	link.errcode = errno;
+    else
+	link.errcode = 0;
+    return link;
 }

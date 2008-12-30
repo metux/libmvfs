@@ -17,6 +17,8 @@
     * metacachefs: added chmod() operation
     * hostfs: added mkdir(), unlink(), fixed stat/scan handling
     * fixed some linkage problem w/ libc (explicit -lc required at the end of the ld command)
+    * moved out the fs-specific make rules to their own files
+    * adding readlink() call to hostfs, metacachefs, autoconnectfs
 
 ---- 0.1.0.4 release ----
 

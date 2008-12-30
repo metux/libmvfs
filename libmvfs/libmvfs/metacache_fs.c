@@ -55,17 +55,19 @@ static MVFS_FILE_OPS _fileops =
     .stat       = _mvfs_metacache_fileopstat
 };
 
-static MVFS_STAT* _mvfs_metacache_fsop_stat   (MVFS_FILESYSTEM* fs, const char* name);
-static MVFS_FILE* _mvfs_metacache_fsop_open   (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
-static int        _mvfs_metacache_fsop_unlink (MVFS_FILESYSTEM* fs, const char* name);
-static int        _mvfs_metacache_fsop_chmod  (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
+static MVFS_STAT*   _mvfs_metacache_fsop_stat     (MVFS_FILESYSTEM* fs, const char* name);
+static MVFS_FILE*   _mvfs_metacache_fsop_open     (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
+static int          _mvfs_metacache_fsop_unlink   (MVFS_FILESYSTEM* fs, const char* name);
+static int          _mvfs_metacache_fsop_chmod    (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
+static MVFS_SYMLINK _mvfs_metacache_fsop_readlink (MVFS_FILESYSTEM* fs, const char* name);
 
 static MVFS_FILESYSTEM_OPS _fsops = 
 {
     .openfile	= _mvfs_metacache_fsop_open,
     .unlink	= _mvfs_metacache_fsop_unlink,
     .stat       = _mvfs_metacache_fsop_stat,
-    .chmod      = _mvfs_metacache_fsop_chmod
+    .chmod      = _mvfs_metacache_fsop_chmod,
+    .readlink   = _mvfs_metacache_fsop_readlink
 };
 
 typedef struct
@@ -189,49 +191,49 @@ static void _cache_clear(METACACHE_RECORD* rec)
     rec->stat = NULL;
 }
 
-off64_t _mvfs_metacache_fileopseek (MVFS_FILE* file, off64_t offset, int whence)
+static off64_t _mvfs_metacache_fileopseek (MVFS_FILE* file, off64_t offset, int whence)
 {
     __FILEOPS_HEAD((off64_t)-1);
     return mvfs_file_seek(priv->cfid, offset, whence);
 }
 
-ssize_t _mvfs_metacache_fileoppread (MVFS_FILE* file, void* buf, size_t count, off64_t offset)
+static ssize_t _mvfs_metacache_fileoppread (MVFS_FILE* file, void* buf, size_t count, off64_t offset)
 {
     __FILEOPS_HEAD((ssize_t)-1);
     return mvfs_file_pread(priv->cfid, buf, count, offset);
 }
 
-ssize_t _mvfs_metacache_fileopread (MVFS_FILE* file, void* buf, size_t count)
+static ssize_t _mvfs_metacache_fileopread (MVFS_FILE* file, void* buf, size_t count)
 {
     __FILEOPS_HEAD((ssize_t)-1);
     return mvfs_file_read(priv->cfid, buf, count);
 }
 
-ssize_t _mvfs_metacache_fileopwrite (MVFS_FILE* file, const void* buf, size_t count)
+static ssize_t _mvfs_metacache_fileopwrite (MVFS_FILE* file, const void* buf, size_t count)
 {
     __FILEOPS_HEAD((ssize_t)-1);
     return mvfs_file_write(priv->cfid, buf, count);
 }
 
-ssize_t _mvfs_metacache_fileoppwrite (MVFS_FILE* file, const void* buf, size_t count, off64_t offset)
+static ssize_t _mvfs_metacache_fileoppwrite (MVFS_FILE* file, const void* buf, size_t count, off64_t offset)
 {
     __FILEOPS_HEAD(-1);
     return mvfs_file_pwrite(priv->cfid, buf, count, offset);
 }
 
-int _mvfs_metacache_fileopsetflag (MVFS_FILE* file, MVFS_FILE_FLAG flag, long value)
+static int _mvfs_metacache_fileopsetflag (MVFS_FILE* file, MVFS_FILE_FLAG flag, long value)
 {
     __FILEOPS_HEAD(-1);
     return mvfs_file_setflag(priv->cfid, flag, value);
 }
 
-int _mvfs_metacache_fileopgetflag (MVFS_FILE* file, MVFS_FILE_FLAG flag, long* value)
+static int _mvfs_metacache_fileopgetflag (MVFS_FILE* file, MVFS_FILE_FLAG flag, long* value)
 {
     __FILEOPS_HEAD(-1);
     return mvfs_file_getflag(priv->cfid, flag, value);
 }
 
-MVFS_STAT* _mvfs_metacache_fileopstat(MVFS_FILE* file)
+static MVFS_STAT* _mvfs_metacache_fileopstat(MVFS_FILE* file)
 {
     __FILEOPS_HEAD(NULL);
 
@@ -255,7 +257,7 @@ MVFS_STAT* _mvfs_metacache_fileopstat(MVFS_FILE* file)
     return st;
 }
 
-MVFS_FILE* _open_cfid(MVFS_FILESYSTEM* fs, MVFS_FILE* cfid, const char* name)
+static MVFS_FILE* _open_cfid(MVFS_FILESYSTEM* fs, MVFS_FILE* cfid, const char* name)
 {
     MVFS_FILE* file = mvfs_file_alloc(fs, _fileops);
     METACACHE_FILE_PRIV* priv = calloc(1,sizeof(METACACHE_FILE_PRIV));
@@ -265,7 +267,7 @@ MVFS_FILE* _open_cfid(MVFS_FILESYSTEM* fs, MVFS_FILE* cfid, const char* name)
     return file;
 }
 
-MVFS_FILE* _mvfs_metacache_fsop_open(MVFS_FILESYSTEM* fs, const char* name, mode_t mode)
+static MVFS_FILE* _mvfs_metacache_fsop_open(MVFS_FILESYSTEM* fs, const char* name, mode_t mode)
 {
     __FSOPS_HEAD(NULL);
 
@@ -280,7 +282,7 @@ MVFS_FILE* _mvfs_metacache_fsop_open(MVFS_FILESYSTEM* fs, const char* name, mode
     return _open_cfid(fs, fid, name);
 }
 
-MVFS_STAT* _mvfs_metacache_fsop_stat(MVFS_FILESYSTEM* fs, const char* filename)
+static MVFS_STAT* _mvfs_metacache_fsop_stat(MVFS_FILESYSTEM* fs, const char* filename)
 {
     __FSOPS_HEAD(NULL);
     DEBUGMSG("lookup: %s", filename);
@@ -307,7 +309,7 @@ MVFS_STAT* _mvfs_metacache_fsop_stat(MVFS_FILESYSTEM* fs, const char* filename)
     return st;
 }
 
-int _mvfs_metacache_fsop_unlink(MVFS_FILESYSTEM* fs, const char* filename)
+static int _mvfs_metacache_fsop_unlink(MVFS_FILESYSTEM* fs, const char* filename)
 {
     __FSOPS_HEAD(-EFAULT);
     DEBUGMSG("name=\"%s\"", filename);
@@ -320,7 +322,14 @@ int _mvfs_metacache_fsop_unlink(MVFS_FILESYSTEM* fs, const char* filename)
     return ret;
 }
 
-int _mvfs_metacache_fsop_chmod(MVFS_FILESYSTEM* fs, const char* filename, mode_t mode)
+// FIXME: should also cache this, perhaps in the stat structure ? or some extension ?
+static MVFS_SYMLINK _mvfs_metacache_fsop_readlink(MVFS_FILESYSTEM* fs, const char* filename)
+{
+    __FSOPS_HEAD(((MVFS_SYMLINK){.errcode = -EFAULT}));
+    return mvfs_fs_readlink(fspriv->fs, filename);
+}
+
+static int _mvfs_metacache_fsop_chmod(MVFS_FILESYSTEM* fs, const char* filename, mode_t mode)
 {
     __FSOPS_HEAD(-EFAULT);
     DEBUGMSG("name=\"%s\"", filename);
@@ -333,7 +342,7 @@ int _mvfs_metacache_fsop_chmod(MVFS_FILESYSTEM* fs, const char* filename, mode_t
     return ret;
 }
 
-void free_CACHEENT(void* ptr)
+static void free_CACHEENT(void* ptr)
 {
     METACACHE_RECORD* rec = (METACACHE_RECORD*)ptr;
     if (rec->stat)
@@ -358,7 +367,7 @@ MVFS_FILESYSTEM* mvfs_metacachefs_create_1(MVFS_FILESYSTEM* clientfs)
     return newfs;
 }
 
-int _mvfs_metacache_fileopclose(MVFS_FILE* file)
+static int _mvfs_metacache_fileopclose(MVFS_FILE* file)
 {
     __FILEOPS_HEAD(-1);
     if (priv->cfid)
@@ -370,7 +379,7 @@ int _mvfs_metacache_fileopclose(MVFS_FILE* file)
     return 0;
 }
 
-int _mvfs_metacache_fileopfree(MVFS_FILE* file)
+static int _mvfs_metacache_fileopfree(MVFS_FILE* file)
 {
     __FILEOPS_HEAD(-1);
     _mvfs_metacache_fileopclose(file);
@@ -379,13 +388,13 @@ int _mvfs_metacache_fileopfree(MVFS_FILE* file)
     return 0;
 }
 
-int _mvfs_metacache_fileopeof(MVFS_FILE* file)
+static int _mvfs_metacache_fileopeof(MVFS_FILE* file)
 {
     __FILEOPS_HEAD(1);
     return mvfs_file_eof(priv->cfid);
 }
 
-MVFS_FILE* _mvfs_metacache_fileoplookup(MVFS_FILE* file, const char* name)
+static MVFS_FILE* _mvfs_metacache_fileoplookup(MVFS_FILE* file, const char* name)
 {
     __FILEOPS_HEAD(NULL);
     MVFS_FILE* f = mvfs_file_lookup(file, name);
@@ -395,7 +404,7 @@ MVFS_FILE* _mvfs_metacache_fileoplookup(MVFS_FILE* file, const char* name)
     return _open_cfid(file->fs, f, name);
 }
 
-MVFS_STAT* _mvfs_metacache_fileopscan(MVFS_FILE* file)
+static MVFS_STAT* _mvfs_metacache_fileopscan(MVFS_FILE* file)
 {
     __FILEOPS_HEAD(NULL);
     MVFS_STAT* st = mvfs_file_scan(priv->cfid);
@@ -410,7 +419,7 @@ MVFS_STAT* _mvfs_metacache_fileopscan(MVFS_FILE* file)
     return st;
 }
 
-int _mvfs_metacache_fileopreset(MVFS_FILE* file)
+static int _mvfs_metacache_fileopreset(MVFS_FILE* file)
 {
     __FILEOPS_HEAD(-1);
     return mvfs_file_reset(priv->cfid);

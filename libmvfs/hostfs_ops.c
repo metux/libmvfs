@@ -158,7 +158,7 @@ static MVFS_STAT* mvfs_stat_from_unix(const char* name, struct stat s)
 
     const char* uid="???";
     const char* gid="???";
-    
+
     if (pw)
 	uid = pw->pw_name;
     if (gr)
@@ -324,7 +324,7 @@ static MVFS_STAT* mvfs_hostfs_fileops_scan(MVFS_FILE* file)
     struct dirent * ent = readdir(dir);
     if (ent == NULL)
 	return 0;
-    
+
     if ((strcmp(ent->d_name,".")==0) || (strcmp(ent->d_name,"..")==0))
 	return mvfs_hostfs_fileops_scan(file);
 

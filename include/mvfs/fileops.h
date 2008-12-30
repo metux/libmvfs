@@ -1,4 +1,3 @@
-
 #ifndef __LIBMVFS_FILEOPS_H
 #define __LIBMVFS_FILEOPS_H
 
@@ -46,10 +45,6 @@ void mvfs_strmode(mode_t mode, char* p);
 
 MVFS_FILESYSTEM* mvfs_fs_create_args(MVFS_ARGS* args);
 
-#ifdef __cplusplus
-}
-#endif
-
 static inline int _mvfs_check_magic(MVFS_FILESYSTEM* fs, const char* magic, const char* fsname)
 {
     if (fs == NULL)
@@ -75,5 +70,9 @@ static inline int _mvfs_check_magic(MVFS_FILESYSTEM* fs, const char* magic, cons
     
     return 1;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

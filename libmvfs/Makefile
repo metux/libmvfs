@@ -1,7 +1,18 @@
 
 SONAME=mvfs
 
-SRCNAMES  = default_ops fileops hostfs_ops mixp_ops fsops strmode arglist autoconnect_ops metacache_fs
+SRCNAMES  = \
+	strmode		\
+	urlparse	\
+	arglist		\
+	default_ops 	\
+	fileops 	\
+	fsops		\
+	hostfs_ops 	\
+	mixp_ops 	\
+	autoconnect_ops \
+	metacache_fs
+
 NOPIC_OBJ = $(addsuffix .nopic.o, $(SRCNAMES))
 PIC_OBJ   = $(addsuffix .pic.o, $(SRCNAMES))
 UNO_OBJ   = $(addsuffix .uno, $(SRCNAMES))

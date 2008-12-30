@@ -1,4 +1,13 @@
 
+---- 0.1.0.5 rc ----
+
+2008-12-30	Enrico Weigelt <weigelt@metux.de>
+
+    * removed non-functional propertylist_ops from stable tree (remains in trunk)
+    * removed non-functional rostring_ops from stable tree (remains in trunk)
+    * removed non-functional mountfs from stable tree (remains in trunk)
+    * removed unused file dirops.c
+
 ---- 0.1.0.4 release ----
 
 2008-06-01	Enrico Weigelt <weigelt@metux.de>		[r578]

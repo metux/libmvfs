@@ -41,6 +41,8 @@
 //	name	filename
 //	ptr	DIR* pointer
 
+#define __DEBUG
+
 #define PRIV_FD(file)			(file->priv.id)
 #define PRIV_NAME(file)			(file->priv.name)
 #define PRIV_DIRP(file)			((DIR*)(file->priv.ptr))
@@ -90,7 +92,7 @@
 	fprintf(stderr,"\n");			\
     }
 
-#define __print_vfs_message(text...)	\
+#define print_vfs_message(text...)	\
     {						\
 	fprintf(stderr,"[VFS] ");		\
 	fprintf(stderr, __FUNCTION__);		\
@@ -100,9 +102,8 @@
     }
 #else
 #define DEBUGMSG(text...)
-#endif
-
 #define print_vfs_message(text...)
+#endif
 
 #define _(a)	a
 
@@ -133,6 +134,7 @@ typedef struct fish_file
     long	readpos;
     char*       tmpname;
     int         tmp_fd;
+    short 	eof;
 } FISH_FILE;
 
 #define CLEARERR()	conn->error = 0;
@@ -268,6 +270,7 @@ fish_free_archive (FISH_CONNECTION* conn)
 	print_vfs_message (_("fish: Disconnecting from %s"),
 			   conn->hostname ? conn->hostname : "???");
 	fish_command (conn, NULL, NONE, "#BYE\nexit\n");
+	DEBUGMSG("closing socket %d / %d", conn->sockw, conn->sockr);
 	close (conn->sockw);
 	close (conn->sockr);
 	conn->sockw = conn->sockr = -1;
@@ -633,14 +636,15 @@ fish_copy2local (FISH_CONNECTION* conn, FISH_FILE* file, off_t offset)
 	ERRMSG("could not get filesize ...");
 	return -EREMOTE;
     }
-    
+
     {
 	char tmpbuf[1024];
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
 	sprintf(tmpbuf,"/tmp/mvfs-fish-%ld-%ld.tmp", tv.tv_sec, tv.tv_usec);
-	file->tmp_fd = open(tmpbuf, O_RDWR|O_CREAT);
+	file->tmp_fd = open(tmpbuf, O_RDWR|O_CREAT|O_TRUNC,S_IRUSR|S_IWUSR);
 	file->tmpname = strdup(tmpbuf);
+	DEBUGMSG("using tempfile: %s fd %d", tmpbuf, file->tmp_fd);
     }
 
     long pos = 0;
@@ -653,8 +657,19 @@ fish_copy2local (FISH_CONNECTION* conn, FISH_FILE* file, off_t offset)
 	pos+=count;
     }
 
+    fsync(file->tmp_fd);
     lseek(file->tmp_fd, 0, SEEK_SET);
 
+    DEBUGMSG("finished writing file (%d bytes)", pos);
+    close(file->tmp_fd);
+    if ((file->tmp_fd = open(file->tmpname, O_RDONLY)) == -1)
+    {
+	ERRMSG("cannot re-open file %s: %s", file->tmpname, strerror(errno));
+    }
+    else
+    {
+	DEBUGMSG("successfully reopened %s -> %d", file->tmpname, file->tmp_fd);
+    }
     {
 	char reply[4096];
 	if (fish_get_reply (conn, (char*)&reply, sizeof(reply)) != COMPLETE)
@@ -940,7 +955,6 @@ init_fish (void)
     fish_subclass.fh_open = fish_fh_open;
     fish_subclass.dir_load = fish_dir_load;
     fish_subclass.dir_uptodate = fish_dir_uptodate;
-    fish_subclass.file_store = fish_file_store;
 
     vfs_s_init_class (&vfs_fish_ops, &fish_subclass);
     vfs_fish_ops.name = "fish";
@@ -1006,12 +1020,31 @@ static MVFS_FILESYSTEM_OPS fishfs_fsops =
     FISH_CONNECTION* conn = ((FISH_CONNECTION*)(file->fs->priv.ptr));	\
     FISH_FILE*       ff   = ((FISH_FILE*)(file->priv.buffer));
 
+#define FILEOP_HEAD_SAFE(err)						\
+    if (file->fs == NULL)						\
+    {									\
+	ERRMSG("file has no fs ptr");					\
+	return err;							\
+    }									\
+    FISH_CONNECTION* conn = ((FISH_CONNECTION*)(file->fs->priv.ptr));	\
+    FISH_FILE*       ff   = ((FISH_FILE*)(file->priv.buffer));		\
+    if (conn == NULL)							\
+    {									\
+	ERRMSG("file's fs has no priv data");				\
+	return err;							\
+    }									\
+    if (ff == NULL)							\
+    {									\
+	ERRMSG("file has no priv data");				\
+    }
+
 #define FSOP_HEAD		\
     FISH_CONNECTION* conn = ((FISH_CONNECTION*)(fs->priv.ptr));
 
 static inline int __getlocal(MVFS_FILE* file)
 {
-    FILEOP_HEAD
+    FILEOP_HEAD_SAFE(0)
+
     if (ff->got_local_copy)
 	return 1;
 
@@ -1030,7 +1063,7 @@ static inline int __getlocal(MVFS_FILE* file)
 
 static off64_t mvfs_fishfs_fileops_seek (MVFS_FILE* file, off64_t offset, int whence)
 {
-    FILEOP_HEAD
+    FILEOP_HEAD_SAFE(-1)
 
     fprintf(stderr,"fileops_seek() off=%ld\n", offset);    
     __getlocal(file);
@@ -1041,7 +1074,7 @@ static off64_t mvfs_fishfs_fileops_seek (MVFS_FILE* file, off64_t offset, int wh
 
 static ssize_t mvfs_fishfs_fileops_read (MVFS_FILE* file, void* buf, size_t count)
 {
-    FILEOP_HEAD
+    FILEOP_HEAD_SAFE(-1)
 
     fprintf(stderr,"fileops_read() count=%ld\n", count);
 
@@ -1050,7 +1083,7 @@ static ssize_t mvfs_fishfs_fileops_read (MVFS_FILE* file, void* buf, size_t coun
     ssize_t s = read(ff->tmp_fd, buf, count);
     file->errcode = errno;
     if (s==0)
-	file->priv.status = 1;
+	ff->eof = 1;
     return s;
 }
 
@@ -1149,10 +1182,13 @@ static MVFS_FILE* mvfs_fishfs_fsops_open(MVFS_FILESYSTEM* fs, const char* name, 
     MVFS_FILE* file = mvfs_file_alloc(fs,fishfs_fileops);
     file->priv.name = strdup(name);
     file->priv.id   = fd;
-    
+
     FISH_FILE* ff = (FISH_FILE*)calloc(1,sizeof(FISH_FILE));
     ff->scanpos   = -1;
     ff->name      = strdup(name);
+    ff->tmp_fd    = -1;
+    ff->tmpname   = NULL;
+    ff->eof       = 0;
     file->priv.buffer = (char*)ff;
 
     return file;
@@ -1160,6 +1196,7 @@ static MVFS_FILE* mvfs_fishfs_fsops_open(MVFS_FILESYSTEM* fs, const char* name, 
 
 static MVFS_STAT* mvfs_fishfs_fsops_stat(MVFS_FILESYSTEM* fs, const char* name)
 {
+    ERRMSG("fsops_stat() not implemented yet");
     if (fs==NULL)
     {
 	ERRMSG("fs==NULL");;
@@ -1188,6 +1225,8 @@ static MVFS_STAT* mvfs_fishfs_fsops_stat(MVFS_FILESYSTEM* fs, const char* name)
 static int mvfs_fishfs_fsops_unlink(MVFS_FILESYSTEM* fs, const char* name)
 {
     FSOP_HEAD
+
+    ERRMSG("unlink: %s", name);
 
     int ret = fish_unlink(conn, name);
 
@@ -1226,7 +1265,7 @@ MVFS_FILESYSTEM* mvfs_fishfs_create_args(MVFS_ARGS* args)
     conn->url      = mvfs_args_get(args,"url");
     conn->port     = mvfs_args_get(args,"port");
 
-    DEBUGMSG("FishFS: initializing ...\n");
+    DEBUGMSG("FishFS: initializing ... 0002\n");
     DEBUGMSG("url=%s\nhost=%s\nport=%s\npath=%s\n", conn->url, conn->hostname, conn->port, conn->path);
 
     fish_connect(conn);
@@ -1238,28 +1277,34 @@ MVFS_FILESYSTEM* mvfs_fishfs_create_args(MVFS_ARGS* args)
 
 static int mvfs_fishfs_fileops_close(MVFS_FILE* file)
 {
-    FILEOP_HEAD
-    
-    close(PRIV_FD(file));
+    FILEOP_HEAD_SAFE(-1)
+
+//    close(PRIV_FD(file));
+    DEBUGMSG("closing tmp_fd %d", ff->tmp_fd);
     close(ff->tmp_fd);
     if (ff->tmpname)
     {
+	DEBUGMSG("removing tempfile \"%s\"", ff->tmpname);
 	unlink(ff->tmpname);
 	free(ff->tmpname);
 	ff->tmpname = NULL;
     }
     file->priv.id = -1;
-    ff->tmp_fd = 0;
+    ff->tmp_fd = -1;
     return 0;
 }
 
 static int mvfs_fishfs_fileops_eof(MVFS_FILE* file)
 {
-    return ((file->priv.status) ? 1 : 0);
+    FILEOP_HEAD_SAFE(-1)
+
+    return ((ff->eof) ? 1 : 0);
 }
 
 static MVFS_FILE* mvfs_fishfs_fileops_lookup  (MVFS_FILE* file, const char* name)
 {
+    ERRMSG("lookup() not implemented yet");
+
     int fd = openat(PRIV_FD(file), name, O_RDONLY);
     if (fd<0)
 	return NULL;
@@ -1273,7 +1318,7 @@ static MVFS_FILE* mvfs_fishfs_fileops_lookup  (MVFS_FILE* file, const char* name
 
 static int mvfs_fishfs_fileops_init_dir(MVFS_FILE* file)
 {
-    FILEOP_HEAD
+    FILEOP_HEAD_SAFE(-1)
 
     /* new scanning algo */
 
@@ -1427,7 +1472,7 @@ static int mvfs_fishfs_fileops_init_dir(MVFS_FILE* file)
 
 static MVFS_STAT* mvfs_fishfs_fileops_scan(MVFS_FILE* file)
 {
-    FILEOP_HEAD
+    FILEOP_HEAD_SAFE(NULL)
 
     mvfs_fishfs_fileops_init_dir(file);
 
@@ -1439,7 +1484,7 @@ static MVFS_STAT* mvfs_fishfs_fileops_scan(MVFS_FILE* file)
 
 static int mvfs_fishfs_fileops_reset(MVFS_FILE* file)
 {
-    FILEOP_HEAD
+    FILEOP_HEAD_SAFE(-1)
     mvfs_fishfs_fileops_init_dir(file);
     ff->scanpos = 0;
     return 1;

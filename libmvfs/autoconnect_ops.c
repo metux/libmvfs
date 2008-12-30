@@ -65,17 +65,19 @@
 	    return err;						\
 	}
 
-static MVFS_STAT* _autoconnectfs_fsop_stat   (MVFS_FILESYSTEM* fs, const char* name);
-static MVFS_FILE* _autoconnectfs_fsop_open   (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
-static int        _autoconnectfs_fsop_unlink (MVFS_FILESYSTEM* fs, const char* name);
-static int        _autoconnectfs_fsop_chmod  (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
+static MVFS_STAT*   _autoconnectfs_fsop_stat     (MVFS_FILESYSTEM* fs, const char* name);
+static MVFS_FILE*   _autoconnectfs_fsop_open     (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
+static int          _autoconnectfs_fsop_unlink   (MVFS_FILESYSTEM* fs, const char* name);
+static int          _autoconnectfs_fsop_chmod    (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
+static MVFS_SYMLINK _autoconnectfs_fsop_readlink (MVFS_FILESYSTEM* fs, const char* name);
 
 static MVFS_FILESYSTEM_OPS _fsops = 
 {
     .openfile	= _autoconnectfs_fsop_open,
     .unlink	= _autoconnectfs_fsop_unlink,
     .stat	= _autoconnectfs_fsop_stat,
-    .chmod      = _autoconnectfs_fsop_chmod
+    .chmod      = _autoconnectfs_fsop_chmod,
+    .readlink   = _autoconnectfs_fsop_readlink
 };
 
 typedef struct _FSENT		FSENT;
@@ -221,6 +223,21 @@ static int _autoconnectfs_fsop_chmod(MVFS_FILESYSTEM* fs, const char* name, mode
     }
 
     int ret = mvfs_fs_chmod(lu.fs, lu.filename, mode);
+    free(lu.filename);
+    return ret;
+}
+
+static MVFS_SYMLINK _autoconnectfs_fsop_readlink(MVFS_FILESYSTEM* fs, const char* name)
+{
+    __FSOPS_HEAD(((MVFS_SYMLINK){.errcode = -EFAULT}));
+    LOOKUP lu = _lookup_fs(fspriv, name);
+    if (lu.fs == NULL)
+    {
+	ERRMSG("couldnt allocate fs for: %s", name);
+	return ((MVFS_SYMLINK){.errcode = -ENOENT});
+    }
+
+    MVFS_SYMLINK ret = mvfs_fs_readlink(lu.fs, lu.filename);
     free(lu.filename);
     return ret;
 }

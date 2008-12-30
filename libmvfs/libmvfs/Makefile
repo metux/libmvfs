@@ -2,21 +2,18 @@
 SONAME=mvfs
 LIBC_LIBS=-lc
 
-SRCNAMES  = sock_get_line	\
-	    util		\
-	    urlparse		\
-	    fileops 		\
-	    fsops		\
-	    strmode		\
-	    arglist		\
-	    default_ops 	\
-	    hostfs_ops 		\
-	    mixp_ops 		\
-	    rostring_ops 	\
-	    propertylist_ops 	\
-	    autoconnect_ops 	\
-	    metacache_fs 	\
-	    fish_fs
+SRCNAMES  = \
+	strmode		\
+	urlparse	\
+	arglist		\
+	default_ops 	\
+	fileops 	\
+	fsops		\
+	sock_get_line	\
+	util		\
+	$(FS_SRCNAMES)
+
+include _fs.*.mk
 
 NOPIC_OBJ = $(addsuffix .nopic.o, $(SRCNAMES))
 PIC_OBJ   = $(addsuffix .pic.o, $(SRCNAMES))

@@ -14,9 +14,12 @@
 #define PRIV_SET_NAME(file,name)	file->priv.name = strdup(name)
 #define PRIV_SET_DIRP(file,dirp)	file->priv.ptr = dirp;
 
+#define __DEBUG
+
 #include <mvfs/mvfs.h>
 #include <mvfs/default_ops.h>
 #include <mvfs/socket_fs.h>
+#include <mvfs/_utils.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -31,24 +34,6 @@
 #include <grp.h>
 
 #define FS_MAGIC 	"socketfs"
-
-#define ERRMSG(text...)	\
-    {						\
-	fprintf(stderr,"[ERR] ");		\
-	fprintf(stderr, __FUNCTION__);		\
-	fprintf(stderr,"() ");			\
-	fprintf(stderr,##text);			\
-	fprintf(stderr,"\n");			\
-    }
-
-#define DEBUGMSG(text...)	\
-    {						\
-	fprintf(stderr,"[DBG] ");		\
-	fprintf(stderr, __FUNCTION__);		\
-	fprintf(stderr,"() ");			\
-	fprintf(stderr,##text);			\
-	fprintf(stderr,"\n");			\
-    }
 
 static int        mvfs_socketfs_fileops_open    (MVFS_FILE* file, mode_t mode);
 static off64_t    mvfs_socketfs_fileops_seek    (MVFS_FILE* file, off64_t offset, int whence);

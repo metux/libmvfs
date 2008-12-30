@@ -13,6 +13,7 @@
 #include <mvfs/mvfs.h>
 #include <mvfs/default_ops.h>
 #include <mvfs/mountfs.h>
+#include <mvfs/_utils.h>
 
 #include <9p-mixp/mixp.h>
 
@@ -92,7 +93,7 @@ static inline MOUNTFS_NODE* _node_get(MOUNTFS_NODE* parent, const char* name)
     if (n!=NULL)
 	return n;
 
-    printf("Couldnt find node \"%s\" ... creating new one\n", name);
+    DEBUGMSG("Couldnt find node \"%s\" ... creating new one", name);
     n = _node_alloc(name);
     n->next = parent->childs;
     parent->childs = n;
@@ -104,7 +105,7 @@ static inline int _mount_fs_on_node(MOUNTFS_NODE* node, MVFS_FILESYSTEM* fs)
 {
     if (node->fs != NULL)
     {
-	printf("node already mounted ... unmounting prev fs\n");
+	DEBUGMSG("node already mounted ... unmounting prev fs");
 	mvfs_fs_unref(node->fs);
 	node->fs = NULL;
     }
@@ -123,13 +124,13 @@ static inline int _mount_fs(MOUNTFS_NODE* root, MVFS_FILESYSTEM* fs, const char*
 
     if (strcmp(name,"/")==0)
     {
-	printf("mounting on root node\n");
+	DEBUGMSG("mounting on root node");
 	return _mount_fs_on_node(root, fs);
     }
 
     while (tok = strtok_r(buffer, "/", &saveptr))
     {
-	printf("mount: component: \"%s\"\n", tok);
+	DEBUGMSG("mount: component: \"%s\"", tok);
 	root = _node_get(root, tok);
     }
     return _mount_fs_on_node(root, fs);
@@ -138,11 +139,14 @@ static inline int _mount_fs(MOUNTFS_NODE* root, MVFS_FILESYSTEM* fs, const char*
 int mvfs_mountfs_mount(MVFS_FILESYSTEM* fs, MVFS_FILESYSTEM* newfs, const char* mountpoint)
 {
     if (fs==NULL)
-	fprintf(stderr,"mvfs_mountfs_mount() NULL fs\n");
+    {
+	ERRMSG("mvfs_mountfs_mount() NULL fs");
+	return -EFAULT;
+    }
     if (newfs==NULL)
-	fprintf(stderr,"mvfs_mountfs_mount() NULL newfs\n");
+	ERRMSG("mvfs_mountfs_mount() NULL newfs");
     if (strcmp(fs->magic, FS_MAGIC))
-	fprintf(stderr,"mvfs_mountfs_mount() corrupt magic: is=\"%s\" should be \"%s\"\n", fs->magic, FS_MAGIC);
+	ERRMSG("mvfs_mountfs_mount() corrupt magic: is=\"%s\" should be \"%s\"", fs->magic, FS_MAGIC);
     
     return -1;
 }
@@ -179,7 +183,7 @@ off64_t mvfs_mountfs_fileops_seek (MVFS_FILE* file, off64_t offset, int whence)
 {
     if (MIXP_FILE_HANDLE(file) == NULL)
     {
-	fprintf(stderr,"mixp::seek() corrupt handle\n");
+	ERRMSG("mixp::seek() corrupt handle");
 	return -1;
     }
 
@@ -189,11 +193,11 @@ off64_t mvfs_mountfs_fileops_seek (MVFS_FILE* file, off64_t offset, int whence)
 	case SEEK_SET:	MIXP_FILE_POS(file) = offset;	break;
 	case SEEK_CUR:	MIXP_FILE_POS(file) += offset;	break;
 	case SEEK_END:	
-	    fprintf(stderr,"WARN: 9p/mixp: SEEK_END not implemented yet\n");
+	    ERRMSG("WARN: 9p/mixp: SEEK_END not implemented yet");
 	    file->errcode = EINVAL;
 	    return (off64_t)-1;
 	default:
-	    fprintf(stderr,"WARN: mixp::seek() unknown whence %d\n", whence);
+	    ERRMSG("WARN: mixp::seek() unknown whence %d", whence);
 	    file->errcode = EINVAL;
 	    return (off64_t)-1;
     }
@@ -203,7 +207,7 @@ ssize_t mvfs_mountfs_fileops_pread (MVFS_FILE* file, void* buf, size_t count)
 {
     if (MIXP_FILE_HANDLE(file) == NULL)
     {
-	fprintf(stderr,"mixp::pread() corrupt handle\n");
+	ERRMSG("mixp::pread() corrupt handle");
 	return -1;
     }
 
@@ -223,7 +227,7 @@ ssize_t mvfs_mountfs_fileops_pwrite (MVFS_FILE* file, const void* buf, size_t co
 {
     if (MIXP_FILE_HANDLE(file) == NULL)
     {
-	fprintf(stderr,"mixp::write() corrupt handle\n");
+	ERRMSG("mixp::write() corrupt handle");
 	return -1;
     }
     ssize_t s = ixp_write(MIXP_FILE_HANDLE(file), buf, count);
@@ -246,21 +250,21 @@ static inline const char* __mvfs_flag2str(MVFS_FILE_FLAG f)
 
 int mvfs_mountfs_fileops_setflag (MVFS_FILE* fp, MVFS_FILE_FLAG flag, long value)
 {
-    fprintf(stderr,"mvfs_mountfs_fileops_setflag() %s not supported\n", __mvfs_flag2str(flag));
+    ERRMSG("mvfs_mountfs_fileops_setflag() %s not supported", __mvfs_flag2str(flag));
     fp->errcode = EINVAL;
     return -1;
 }
 
 int mvfs_mountfs_fileops_getflag (MVFS_FILE* fp, MVFS_FILE_FLAG flag, long* value)
 {
-    fprintf(stderr,"mvfs_mountfs_fileops_getflag() %s not supported\n", __mvfs_flag2str(flag));
+    ERRMSG("mvfs_mountfs_fileops_getflag() %s not supported", __mvfs_flag2str(flag));
     fp->errcode = EINVAL;
     return -1;
 }
 
 MVFS_STAT* mvfs_mountfs_fileops_stat(MVFS_FILE* fp)
 {
-    fprintf(stderr,"mvfs_mountfs_fileops_stat() not supported\n");
+    ERRMSG("mvfs_mountfs_fileops_stat() not supported");
     fp->errcode = EINVAL;
     return NULL;
 }
@@ -305,15 +309,15 @@ int _walktree(MOUNTFS_NODE* root, const char* path, MVFS_FILESYSTEM** result_fs,
 		rest_path++;
 	}
 
-	printf("Diving sub_name=\"%s\"\n", sub_name);
-	printf("       rest_path=\"%s\"\n", rest_path);
+	DEBUGMSG("Diving sub_name=\"%s\"", sub_name);
+	DEBUGMSG("       rest_path=\"%s\"", rest_path);
 
 	// look if we have an sub-node
 	sub_node = _node_find(root,sub_name);
 	if (sub_node)
-	    printf("Found sub\n");
+	    DEBUGMSG("Found sub");
 	else
-	    printf("No sub\n");    
+	    DEBUGMSG("No sub");
 
 	free(sub_name);
     }
@@ -346,7 +350,7 @@ MVFS_FILE* mvfs_mountfs_fsops_openfile(MVFS_FILESYSTEM* fs, const char* name, mo
     if (_walktree(root, name, &found_fs, &found_path))
 	return mvfs_fs_openfile(found_fs, found_path, mode);
 
-    printf("Could not find mountpoint for \"%s\" mode=%d\n", name, mode);
+    ERRMSG("Could not find mountpoint for \"%s\" mode=%d", name, mode);
     return NULL;
 }
 
@@ -360,7 +364,7 @@ MVFS_STAT* mvfs_mountfs_fsops_statfile(MVFS_FILESYSTEM* fs, const char* name)
     if (_walktree(root, name, &found_fs, &found_path))
 	return mvfs_fs_statfile(found_fs, found_path);
 	
-    printf("Could not find mountpoint for \"%s\"\n", name);
+    ERRMSG("Could not find mountpoint for \"%s\"", name);
     return NULL;
 }
 
@@ -374,7 +378,7 @@ int mvfs_mountfs_fsops_unlink(MVFS_FILESYSTEM* fs, const char* name)
     if (_walktree(root, name, &found_fs, &found_path))
 	return mvfs_fs_unlink(found_fs, found_path);
     
-    printf("Could not find mountpoint for \"%s\"\n", name);
+    ERRMSG("Could not find mountpoint for \"%s\"", name);
     return -ENOENT;
 }
 

@@ -54,6 +54,7 @@
 #include <mvfs/mvfs.h>
 #include <mvfs/default_ops.h>
 #include <mvfs/hostfs.h>
+#include <mvfs/_utils.h>
 
 #include <sys/time.h>
 #include <time.h>
@@ -73,25 +74,7 @@
 
 #define FS_MAGIC 	"fishfs"
 
-#define ERRMSG(text...)	\
-    {						\
-	fprintf(stderr,"[ERR] ");		\
-	fprintf(stderr, __FUNCTION__);		\
-	fprintf(stderr,"() ");			\
-	fprintf(stderr,##text);			\
-	fprintf(stderr,"\n");			\
-    }
-
 #ifdef __DEBUG
-#define DEBUGMSG(text...)	\
-    {						\
-	fprintf(stderr,"[DBG] ");		\
-	fprintf(stderr, __FUNCTION__);		\
-	fprintf(stderr,"() ");			\
-	fprintf(stderr,##text);			\
-	fprintf(stderr,"\n");			\
-    }
-
 #define print_vfs_message(text...)	\
     {						\
 	fprintf(stderr,"[VFS] ");		\
@@ -101,7 +84,6 @@
 	fprintf(stderr,"\n");			\
     }
 #else
-#define DEBUGMSG(text...)
 #define print_vfs_message(text...)
 #endif
 
@@ -115,7 +97,7 @@ typedef struct fish_connection
     const char* secret;
     const char* url;
     const char* port;
-    const char* cwdir;
+    char* cwdir;
     int   sockr;
     int   sockw;
     int   error;
@@ -674,10 +656,10 @@ fish_copy2local (FISH_CONNECTION* conn, FISH_FILE* file, off_t offset)
 	char reply[4096];
 	if (fish_get_reply (conn, (char*)&reply, sizeof(reply)) != COMPLETE)
 	{
-//	    fprintf(stderr,"reply failed: %s\n", reply);
+//	    DEBUGMSG("reply failed: %s", reply);
 	}
 //	else
-//	    fprintf(stderr,"reply ok: %s\n", reply);
+//	    DEBUGMSG("reply ok: %s", reply);
     }
 
     return 0;
@@ -1065,7 +1047,8 @@ static off64_t mvfs_fishfs_fileops_seek (MVFS_FILE* file, off64_t offset, int wh
 {
     FILEOP_HEAD_SAFE(-1)
 
-    fprintf(stderr,"fileops_seek() off=%ld\n", offset);    
+    DEBUGMSG("fileops_seek() off=%ld", offset);
+
     __getlocal(file);
     off_t ret = lseek(ff->tmp_fd, offset, whence);
     file->errcode = errno;
@@ -1076,7 +1059,7 @@ static ssize_t mvfs_fishfs_fileops_read (MVFS_FILE* file, void* buf, size_t coun
 {
     FILEOP_HEAD_SAFE(-1)
 
-    fprintf(stderr,"fileops_read() count=%ld\n", count);
+    DEBUGMSG("fileops_read() count=%ld", count);
 
     __getlocal(file);
     memset(buf, 0, count);

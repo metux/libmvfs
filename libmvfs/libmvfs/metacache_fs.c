@@ -19,19 +19,7 @@
 #include <mvfs/stat.h>
 #include <mvfs/default_ops.h>
 #include <mvfs/mixpfs.h>
-
-#ifdef __DEBUG_METACACHEFS
-#define DEBUGMSG(text...)		\
-    {					\
-	fprintf(stderr,"[DBG ]");	\
-	fprintf(stderr,__FUNCTION__);	\
-	fprintf(stderr,"(): ");		\
-	fprintf(stderr,##text);		\
-	fprintf(stderr,"\n");		\
-    }
-#else
-#define DEBUGMSG(text...)
-#endif
+#include <mvfs/_utils.h>
 
 #define	FS_MAGIC	"metux/metacache-fs-1"
 
@@ -67,12 +55,14 @@ static MVFS_FILE_OPS _fileops =
 static MVFS_STAT* _mvfs_metacache_fsop_stat   (MVFS_FILESYSTEM* fs, const char* name);
 static MVFS_FILE* _mvfs_metacache_fsop_open   (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
 static int        _mvfs_metacache_fsop_unlink (MVFS_FILESYSTEM* fs, const char* name);
+static int        _mvfs_metacache_fsop_chmod  (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
 
 static MVFS_FILESYSTEM_OPS _fsops = 
 {
     .openfile	= _mvfs_metacache_fsop_open,
     .unlink	= _mvfs_metacache_fsop_unlink,
-    .stat       = _mvfs_metacache_fsop_stat
+    .stat       = _mvfs_metacache_fsop_stat,
+    .chmod      = _mvfs_metacache_fsop_chmod
 };
 
 typedef struct
@@ -94,46 +84,46 @@ typedef struct
     hash		cache;
 } METACACHE_FS_PRIV;
 
-#define __FILEOPS_HEAD(err);						\
-	if (file==NULL)							\
-	{								\
-	    fprintf(stderr,"%s() NULL file handle\n", __FUNCTION__);	\
-	    return err;							\
-	}								\
-	METACACHE_FILE_PRIV* priv = (file->priv.ptr);			\
-	if (priv == NULL)						\
-	{								\
-	    fprintf(stderr,"%s() corrupt file handle\n", __FUNCTION__);	\
-	    return err;							\
-	}								\
-	if (file->fs==NULL)						\
-	{								\
-	    fprintf(stderr,"%s() NULL file handle\n", __FUNCTION__);	\
-	    return err;							\
-	}								\
-	METACACHE_FS_PRIV* fspriv = (file->fs->priv.ptr);		\
-	if (fspriv == NULL)						\
-	{								\
-	    fprintf(stderr,"%s() corrupt fs handle\n", __FUNCTION__);	\
-	    return err;							\
+#define __FILEOPS_HEAD(err);					\
+	if (file==NULL)						\
+	{							\
+	    ERRMSG("NULL file handle");				\
+	    return err;						\
+	}							\
+	METACACHE_FILE_PRIV* priv = (file->priv.ptr);		\
+	if (priv == NULL)					\
+	{							\
+	    ERRMSG("corrupt file handle");			\
+	    return err;						\
+	}							\
+	if (file->fs==NULL)					\
+	{							\
+	    ERRMSG("NULL file handle");				\
+	    return err;						\
+	}							\
+	METACACHE_FS_PRIV* fspriv = (file->fs->priv.ptr);	\
+	if (fspriv == NULL)					\
+	{							\
+	    ERRMSG("corrupt fs handle");			\
+	    return err;						\
 	}
 
-#define __FSOPS_HEAD(err);						\
-	if (fs==NULL)							\
-	{								\
-	    fprintf(stderr,"%s() NULL file handle\n", __FUNCTION__);	\
-	    return err;							\
-	}								\
-	METACACHE_FS_PRIV* fspriv = (fs->priv.ptr);			\
-	if (fspriv == NULL)						\
-	{								\
-	    fprintf(stderr,"%s() corrupt fspriv\n", __FUNCTION__);	\
-	    return err;							\
-	}								\
-	if (fspriv->fs == NULL)						\
-	{								\
-	    fprintf(stderr,"%s() missing backend fs\n", __FUNCTION__);	\
-	    return err;							\
+#define __FSOPS_HEAD(err);					\
+	if (fs==NULL)						\
+	{							\
+	    ERRMSG("NULL fs handle");				\
+	    return err;						\
+	}							\
+	METACACHE_FS_PRIV* fspriv = (fs->priv.ptr);		\
+	if (fspriv == NULL)					\
+	{							\
+	    ERRMSG("corrupt fspriv");				\
+	    return err;						\
+	}							\
+	if (fspriv->fs == NULL)					\
+	{							\
+	    ERRMSG("missing backend fs");			\
+	    return err;						\
 	}
 
 // default cache timeout is 5sec (1^6 microseconds)
@@ -162,6 +152,7 @@ static METACACHE_RECORD* _cache_lookup(METACACHE_FS_PRIV* fspriv, const char* fi
 	    return rec;
 	}
 	
+	DEBUGMSG("purging old cache record for %s", filename);
 	mvfs_stat_free(rec->stat);
 	rec->stat = NULL;
 	return rec;
@@ -179,12 +170,8 @@ static METACACHE_RECORD* _cache_lookup(METACACHE_FS_PRIV* fspriv, const char* fi
 static void _cache_set(METACACHE_RECORD* rec, MVFS_STAT* st)
 {
     rec->mtime = _curtime();
-    if (rec->stat != NULL)
-	mvfs_stat_free(rec->stat);
-    if (stat != NULL)
-        rec->stat = mvfs_stat_dup(st);
-    else
-	rec->stat = NULL;
+    mvfs_stat_free(rec->stat);
+    rec->stat = (st ? mvfs_stat_dup(st) : NULL);
 }
 
 static void _cache_clear(METACACHE_RECORD* rec)
@@ -195,8 +182,8 @@ static void _cache_clear(METACACHE_RECORD* rec)
 	return;
     }
     rec->mtime = _curtime();
-    if (rec->stat != NULL)
-	mvfs_stat_free(rec->stat);
+    mvfs_stat_free(rec->stat);
+    rec->stat = NULL;
 }
 
 off64_t _mvfs_metacache_fileopseek (MVFS_FILE* file, off64_t offset, int whence)
@@ -327,6 +314,19 @@ int _mvfs_metacache_fsop_unlink(MVFS_FILESYSTEM* fs, const char* filename)
     int ret = mvfs_fs_unlink(fspriv->fs, filename);
 
     DEBUGMSG("unlink() fs returned %d", ret);
+    return ret;
+}
+
+int _mvfs_metacache_fsop_chmod(MVFS_FILESYSTEM* fs, const char* filename, mode_t mode)
+{
+    __FSOPS_HEAD(-EFAULT);
+    DEBUGMSG("name=\"%s\"", filename);
+
+    METACACHE_RECORD* rec = _cache_lookup(fspriv, filename);
+    _cache_clear(rec);
+    int ret = mvfs_fs_chmod(fspriv->fs, filename, mode);
+
+    DEBUGMSG("fs returned %d", ret);
     return ret;
 }
 

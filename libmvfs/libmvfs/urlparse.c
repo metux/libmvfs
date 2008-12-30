@@ -2,6 +2,7 @@
 #include <malloc.h>
 #include <stdio.h>
 #include <mvfs/url.h>
+#include <mvfs/_utils.h>
 
 #define RET_OK		\
     {			\
@@ -9,11 +10,11 @@
 	return url;	\
     }
 
-#define RET_ERR(err)								\
-    {										\
-	url->error = err;							\
-	fprintf(stderr,"__mvfs_url_parse: (%s) error: %d \n", url->url, err);	\
-	return url;								\
+#define RET_ERR(err)					\
+    {							\
+	url->error = err;				\
+	DEBUGMSG("(%s) error: %d \n", url->url, err);	\
+	return url;					\
     }
 
 MVFS_URL* mvfs_url_parse(const char* u)

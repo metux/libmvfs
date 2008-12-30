@@ -17,6 +17,7 @@
 #include <mvfs/mvfs.h>
 #include <mvfs/default_ops.h>
 #include <mvfs/hostfs.h>
+#include <mvfs/_utils.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -31,24 +32,6 @@
 #include <grp.h>
 
 #define FS_MAGIC 	"hostfs"
-
-#define ERRMSG(text...)	\
-    {						\
-	fprintf(stderr,"[ERR] ");		\
-	fprintf(stderr, __FUNCTION__);		\
-	fprintf(stderr,"() ");			\
-	fprintf(stderr,##text);			\
-	fprintf(stderr,"\n");			\
-    }
-
-#define DEBUGMSG(text...)	\
-    {						\
-	fprintf(stderr,"[DBG] ");		\
-	fprintf(stderr, __FUNCTION__);		\
-	fprintf(stderr,"() ");			\
-	fprintf(stderr,##text);			\
-	fprintf(stderr,"\n");			\
-    }
 
 static int        mvfs_hostfs_fileops_open    (MVFS_FILE* file, mode_t mode);
 static off64_t    mvfs_hostfs_fileops_seek    (MVFS_FILE* file, off64_t offset, int whence);
@@ -85,13 +68,15 @@ static MVFS_STAT* mvfs_hostfs_fsops_stat    (MVFS_FILESYSTEM* fs, const char* na
 static int        mvfs_hostfs_fsops_unlink  (MVFS_FILESYSTEM* fs, const char* name);
 static int        mvfs_hostfs_fsops_free    (MVFS_FILESYSTEM* fs);
 static int        mvfs_hostfs_fsops_mkdir   (MVFS_FILESYSTEM* file, const char* name, mode_t mode);
+static int        mvfs_hostfs_fsops_chmod   (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
 
 static MVFS_FILESYSTEM_OPS hostfs_fsops = 
 {
     .openfile	= mvfs_hostfs_fsops_open,
     .unlink	= mvfs_hostfs_fsops_unlink,
     .stat       = mvfs_hostfs_fsops_stat,
-    .mkdir      = mvfs_hostfs_fsops_mkdir
+    .mkdir      = mvfs_hostfs_fsops_mkdir,
+    .chmod      = mvfs_hostfs_fsops_chmod
 };
 
 static off64_t mvfs_hostfs_fileops_seek (MVFS_FILE* file, off64_t offset, int whence)
@@ -196,12 +181,24 @@ static MVFS_STAT* mvfs_hostfs_fileops_stat(MVFS_FILE* fp)
 
 static MVFS_FILE* mvfs_hostfs_fsops_open(MVFS_FILESYSTEM* fs, const char* name, mode_t mode)
 {
+    DEBUGMSG("XXX mvfs_hostfs_fsops_open() name=\"%s\" %d\n", name, mode);
+
+    if (mode & O_CREAT)
+	DEBUGMSG("Flag: CREAT");
+    if (mode & O_WRONLY)
+	DEBUGMSG("Flag: WRONLY");
+    if (mode & O_RDONLY)
+	DEBUGMSG("Flag: RDONLY");
+
     int fd = open(name, mode);
     if (fd<0)
     {
 	fs->errcode = errno;
+	ERRMSG("error opening file: %s", strerror(errno));
 	return NULL;
     }
+
+    DEBUGMSG("file opened: %d", fd);
 
     MVFS_FILE* file = mvfs_file_alloc(fs,hostfs_fileops);
     file->priv.name = strdup(name);
@@ -209,8 +206,6 @@ static MVFS_FILE* mvfs_hostfs_fsops_open(MVFS_FILESYSTEM* fs, const char* name, 
     
     return file;
 }
-
-
 
 static MVFS_STAT* mvfs_hostfs_fsops_stat(MVFS_FILESYSTEM* fs, const char* name)
 {
@@ -355,4 +350,9 @@ static int mvfs_hostfs_fileops_reset(MVFS_FILE* file)
     
     rewinddir(dir);
     return 1;
+}
+
+static int mvfs_hostfs_fsops_chmod(MVFS_FILESYSTEM* fs, const char* name, mode_t mode)
+{
+    return chmod(name, mode);
 }

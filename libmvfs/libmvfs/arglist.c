@@ -6,6 +6,7 @@
 
 #include <mvfs/mvfs.h>
 #include <mvfs/url.h>
+#include <mvfs/_utils.h>
 
 // not very efficient yet, but should work for now
 
@@ -14,7 +15,7 @@ MVFS_ARGS* mvfs_args_alloc()
     MVFS_ARGS* args = calloc(1,sizeof(MVFS_ARGS));
     if (!hash_initialise(&(args->hashtable), 997U, hash_hash_string, hash_compare_string, hash_copy_string, free, free))
     {
-	fprintf(stderr,"mvfs_args_alloc() hash init failed\n");
+	ERRMSG("hash init failed");
 	free(args);
 	return NULL;
     }
@@ -44,7 +45,7 @@ int mvfs_args_set(MVFS_ARGS* args, const char* name, const char* value)
 	return 0;
 	
     if (!hash_insert(&(args->hashtable), strdup(name), strdup(value)))
-	fprintf(stderr,"mvfs_args_set failed for key %s\n", name);
+	ERRMSG("failed for key %s", name);
 
     return 1;
 }
@@ -59,7 +60,7 @@ int mvfs_args_setn(MVFS_ARGS* args, const char* name, const char* value, int sz)
 	return 0;
 	
     if (!hash_insert(&(args->hashtable), strdup(name), strndup(value,sz)))
-	fprintf(stderr,"mvfs_args_setn failed for key %s\n", name);
+	ERRMSG("failed for key %s", name);
 
     return 1;
 }

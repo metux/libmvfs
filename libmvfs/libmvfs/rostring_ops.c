@@ -6,6 +6,7 @@
 
 #include <mvfs/mvfs.h>
 #include <mvfs/rostring_file.h>
+#include <mvfs/_utils.h>
 
 int mvfs_rostring_ops_reopen(MVFS_FILE* f, mode_t mode)
 {
@@ -22,13 +23,13 @@ ssize_t mvfs_rostring_ops_pread(MVFS_FILE* f, void* buf, size_t size, int64_t of
 {
     if (offset>=(f->priv.id))
     {
-	fprintf(stderr,"ixp_rostring_ops_read() attempt to ready beyond end of file\n");
+	DEBUGMSG("attempt to ready beyond end of file");
 	return 0;
     }
     else if ((offset+size)>(f->priv.id))
     {
 	size = (f->priv.id) - offset;
-	fprintf(stderr,"ixp_rostring_ops_read() reducing size to %ld @ offset %ld size %d\n", size, offset, f->priv.id);
+	DEBUGMSG("reducing size to %ld @ offset %ld size %d", size, offset, f->priv.id);
     }
     
     memcpy(buf,(f->priv.name)+offset, size);

@@ -8,6 +8,7 @@
 
 #include <mvfs/mvfs.h>
 #include <mvfs/default_ops.h>
+#include <mvfs/_utils.h>
 
 /* release the file's data */
 int mvfs_default_fileops_free  (MVFS_FILE* file)
@@ -22,48 +23,48 @@ int mvfs_default_fileops_free  (MVFS_FILE* file)
 
 int mvfs_default_fileops_close (MVFS_FILE* file)
 {
-    fprintf(stderr,"mvfs_default_fileops_close() DUMMY\n");
+    DEBUGMSG("DUMMY");
     return 0;
 }
 
 int mvfs_default_fileops_open    (MVFS_FILE* fp, mode_t mode)
 {
-    fprintf(stderr,"mvfs_default_fileops_open() DUMMY\n");
+    DEBUGMSG("DUMMY");
     fp->errcode = 0;
     return 0;
 }
 
 off64_t mvfs_default_fileops_seek (MVFS_FILE* fp, off64_t offset, int whence)
 {
-    fprintf(stderr,"mvfs_default_fileops_seek() seeking not supported\n");
+    DEBUGMSG("DUMMY");
     fp->errcode = ESPIPE;
     return (off64_t) -1;
 }
 
 ssize_t mvfs_default_fileops_read    (MVFS_FILE* fp, void* buf, size_t count)
 {
-    fprintf(stderr,"mvfs_default_fileops_pread() read not supported\n");
+    DEBUGMSG("DUMMY");
     fp->errcode = EINVAL;
     return (ssize_t) -1;
 }
 
 ssize_t mvfs_default_fileops_write   (MVFS_FILE* fp, const void* buf, size_t count)
 {
-    fprintf(stderr,"mvfs_default_fileops_pwrite() write not supported\n");
+    DEBUGMSG("DUMMY");
     fp->errcode = EINVAL;
     return (ssize_t) -1;
 }
 
 ssize_t mvfs_default_fileops_pread    (MVFS_FILE* fp, void* buf, size_t count, off64_t offset)
 {
-    fprintf(stderr,"mvfs_default_fileops_pread() read not supported\n");
+    DEBUGMSG("DUMMY");
     fp->errcode = EINVAL;
     return (ssize_t) -1;
 }
 
 ssize_t mvfs_default_fileops_pwrite   (MVFS_FILE* fp, const void* buf, size_t count, off64_t offset)
 {
-    fprintf(stderr,"mvfs_default_fileops_pwrite() write not supported\n");
+    DEBUGMSG("DUMMY");
     fp->errcode = EINVAL;
     return (ssize_t) -1;
 }
@@ -83,28 +84,28 @@ static inline const char* __mvfs_flag2str(MVFS_FILE_FLAG f)
 
 int mvfs_default_fileops_setflag (MVFS_FILE* fp, MVFS_FILE_FLAG flag, long value)
 {
-    fprintf(stderr,"mvfs_default_fileops_setflag() %s not supported\n", __mvfs_flag2str(flag));
+    DEBUGMSG("Flag %s not supported", __mvfs_flag2str(flag));
     fp->errcode = EINVAL;
     return -1;
 }
 
 int mvfs_default_fileops_getflag (MVFS_FILE* fp, MVFS_FILE_FLAG flag, long* value)
 {
-    fprintf(stderr,"mvfs_default_fileops_getflag() %s not supported\n", __mvfs_flag2str(flag));
+    DEBUGMSG("Flag %s not supported", __mvfs_flag2str(flag));
     fp->errcode = EINVAL;
     return -1;
 }
 
 MVFS_STAT* mvfs_default_fileops_stat(MVFS_FILE* fp)
 {
-    fprintf(stderr,"mvfs_default_fileops_stat() not supported\n");
+    DEBUGMSG("DUMMY");
     fp->errcode = EINVAL;
     return NULL;
 }
 
 MVFS_FILE* mvfs_default_fsops_openfile(MVFS_FILESYSTEM* fs, const char* name, mode_t mode)
 {
-    fprintf(stderr,"mvfs_default_fsops_open() DUMMY\n");
+    DEBUGMSG("DUMMY");
     if (fs!=NULL)
 	fs->errcode = EINVAL;
     return NULL;
@@ -112,7 +113,7 @@ MVFS_FILE* mvfs_default_fsops_openfile(MVFS_FILESYSTEM* fs, const char* name, mo
 
 MVFS_STAT* mvfs_default_fsops_stat(MVFS_FILESYSTEM* fs, const char* name)
 {
-    fprintf(stderr,"mvfs_default_fsops_stat() DUMMY\n");
+    DEBUGMSG("DUMMY");
     if (fs!=NULL)
 	fs->errcode = EINVAL;
     return NULL;
@@ -120,7 +121,7 @@ MVFS_STAT* mvfs_default_fsops_stat(MVFS_FILESYSTEM* fs, const char* name)
 
 int mvfs_default_fsops_unlink(MVFS_FILESYSTEM* fs, const char* name)
 {
-    fprintf(stderr,"mvfs_default_fsops_unlink() DUMMY\n");
+    DEBUGMSG("DUMMY");
     if (fs!=NULL)
 	fs->errcode = EINVAL;
     return -EINVAL;
@@ -128,7 +129,7 @@ int mvfs_default_fsops_unlink(MVFS_FILESYSTEM* fs, const char* name)
 
 int mvfs_default_fileops_eof(MVFS_FILE* file)
 {
-    fprintf(stderr,"mvfs_default_fileops_eof() DUMMY\n");
+    DEBUGMSG("DUMMY");
     return 0;
 }
 

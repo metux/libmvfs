@@ -6,7 +6,7 @@
 // the functionality is a little bit like MC's vfs
 //
 
-// #define _DEBUG
+#define __DEBUG
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -14,60 +14,63 @@
 #include <errno.h>
 #include <mvfs/mvfs.h>
 #include <mvfs/autoconnect_ops.h>
+#include <mvfs/_utils.h>
 
 #define FS_MAGIC	"metux/autoconnect-fs-1.0"
 
-#define __FILEOPS_HEAD(err);						\
-	if (file==NULL)							\
-	{								\
-	    fprintf(stderr,"%s() NULL file handle\n", __FUNCTION__);	\
-	    return err;							\
-	}								\
-	METACACHE_FILE_PRIV* priv = (file->priv.ptr);			\
-	if (priv == NULL)						\
-	{								\
-	    fprintf(stderr,"%s() corrupt file handle\n", __FUNCTION__);	\
-	    return err;							\
-	}								\
-	if (file->fs==NULL)						\
-	{								\
-	    fprintf(stderr,"%s() NULL file handle\n", __FUNCTION__);	\
-	    return err;							\
-	}								\
-	ACFS_FS_PRIV* fspriv = (file->fs->priv.ptr);			\
-	if (fspriv == NULL)						\
-	{								\
-	    fprintf(stderr,"%s() corrupt fs handle\n", __FUNCTION__);	\
-	    return err;							\
+#define __FILEOPS_HEAD(err);					\
+	if (file==NULL)						\
+	{							\
+	    ERRMSG("NULL file handle");				\
+	    return err;						\
+	}							\
+	METACACHE_FILE_PRIV* priv = (file->priv.ptr);		\
+	if (priv == NULL)					\
+	{							\
+	    ERRMSG("corrupt file handle");			\
+	    return err;						\
+	}							\
+	if (file->fs==NULL)					\
+	{							\
+	    ERRMSG("NULL file handle");				\
+	    return err;						\
+	}							\
+	ACFS_FS_PRIV* fspriv = (file->fs->priv.ptr);		\
+	if (fspriv == NULL)					\
+	{							\
+	    ERRMSG("corrupt fs handle");			\
+	    return err;						\
 	}
 
-#define __FSOPS_HEAD(err);						\
-	if (fs==NULL)							\
-	{								\
-	    fprintf(stderr,"%s() NULL file handle\n", __FUNCTION__);	\
-	    return err;							\
-	}								\
-	if (!_mvfs_check_magic(fs,FS_MAGIC, "autoconnectfs"))		\
-	{								\
-	    fprintf(stderr,"%s() fs magic mismatch\n", __FUNCTION__);	\
-	    return err;							\
-	}								\
-	ACFS_FS_PRIV* fspriv = (fs->priv.ptr);				\
-	if (fspriv == NULL)						\
-	{								\
-	    fprintf(stderr,"%s() corrupt fs handle\n", __FUNCTION__);	\
-	    return err;							\
+#define __FSOPS_HEAD(err);					\
+	if (fs==NULL)						\
+	{							\
+	    ERRMSG("NULL file handle");				\
+	    return err;						\
+	}							\
+	if (!_mvfs_check_magic(fs,FS_MAGIC, "autoconnectfs"))	\
+	{							\
+	    ERRMSG("fs magic mismatch");			\
+	    return err;						\
+	}							\
+	ACFS_FS_PRIV* fspriv = (fs->priv.ptr);			\
+	if (fspriv == NULL)					\
+	{							\
+	    ERRMSG("corrupt fs handle");			\
+	    return err;						\
 	}
 
-static MVFS_STAT* _acfs_fsops_stat   (MVFS_FILESYSTEM* fs, const char* name);
-static MVFS_FILE* _acfs_fsops_open   (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
-static int        _acfs_fsops_unlink (MVFS_FILESYSTEM* fs, const char* name);
+static MVFS_STAT* _autoconnectfs_fsop_stat   (MVFS_FILESYSTEM* fs, const char* name);
+static MVFS_FILE* _autoconnectfs_fsop_open   (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
+static int        _autoconnectfs_fsop_unlink (MVFS_FILESYSTEM* fs, const char* name);
+static int        _autoconnectfs_fsop_chmod  (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
 
 static MVFS_FILESYSTEM_OPS _fsops = 
 {
-    .openfile	= _acfs_fsops_open,
-    .unlink	= _acfs_fsops_unlink,
-    .stat	= _acfs_fsops_stat
+    .openfile	= _autoconnectfs_fsop_open,
+    .unlink	= _autoconnectfs_fsop_unlink,
+    .stat	= _autoconnectfs_fsop_stat,
+    .chmod      = _autoconnectfs_fsop_chmod
 };
 
 typedef struct _FSENT		FSENT;
@@ -113,33 +116,29 @@ static LOOKUP _lookup_fs(ACFS_FS_PRIV* priv, const char* file)
 	sprintf(buffer,"%s://%s/", type, host);
 
     // FIXME: the whole of this could reside in an URI->Plan9 fs layer, which does the connection handling automatically
-#ifdef _DEBUG
-    fprintf(stderr,"Autoconnect-FS: looking for fs for: \"%s\" (key: %s)\n", file, buffer);
-#endif
+    DEBUGMSG("looking for fs for: \"%s\" (key: %s)", file, buffer);
+
     // now try to find a matching fs -- fixme !!!!
     FSENT* p;
     for (p=priv->filesystems; p; p=p->next)
     {
 	if (!strcmp(p->url,buffer))
 	{
-#ifdef _DEBUG
-	    fprintf(stderr,"Autoconnect-FS: found an existing connection for: %s (%s)\n", file, buffer);
-#endif
+	    DEBUGMSG("found an existing connection for: %s (%s", file, buffer);
 	    ret.fs       = p->fs;
 	    ret.filename = strdup(path);
 	    goto out;
 	}
     }
 
-#ifdef _DEBUG
-    fprintf(stderr,"Autoconnect-FS: Dont have an connection for %s (%s) yet - trying to connect ...\n", file, buffer);
-#endif
+    DEBUGMSG("Dont have an connection for %s (%s) yet - trying to connect ...", file, buffer);
+
     // prevent attempting to chroot
     mvfs_args_set(args, "path", "");
     MVFS_FILESYSTEM* fs = mvfs_fs_create_args(args);
     if (fs == NULL)
     {
-	fprintf(stderr,"Autoconnect-FS: Couldnt connect to service: %s\n", buffer);
+	ERRMSG("Couldnt connect to service: %s", buffer);
 	goto err;
     }
 
@@ -149,9 +148,8 @@ static LOOKUP _lookup_fs(ACFS_FS_PRIV* priv, const char* file)
     newfs->next = priv->filesystems;
     priv->filesystems = newfs;
 
-#ifdef _DEBUG    
-    fprintf(stderr,"Autoconnect-FS: Now opening file: %s via fs\n", file);
-#endif
+    DEBUGMSG("Now opening file: %s via fs", file);
+
     ret.fs       = fs;
     ret.filename = strdup(path);
 
@@ -162,16 +160,13 @@ out:
     return ret;
 }
 
-static MVFS_FILE* _acfs_fsops_open(MVFS_FILESYSTEM* fs, const char* name, mode_t mode)
+static MVFS_FILE* _autoconnectfs_fsop_open(MVFS_FILESYSTEM* fs, const char* name, mode_t mode)
 {
     __FSOPS_HEAD(NULL);
-#ifdef _DEBUG
-    fprintf(stderr,"autoconnect_ops: openfile: \"%s\"\n", name);
-#endif
     LOOKUP lu = _lookup_fs(fspriv,name);
     if (lu.fs == NULL)
     {
-	fprintf(stderr,"autoconnect_ops: couldnt allocate fs for: %s\n");
+	ERRMSG("couldnt allocate fs for: %s", name);
 	return NULL;
     }
 
@@ -180,16 +175,13 @@ static MVFS_FILE* _acfs_fsops_open(MVFS_FILESYSTEM* fs, const char* name, mode_t
     return f;
 }
 
-static MVFS_STAT* _acfs_fsops_stat(MVFS_FILESYSTEM* fs, const char* name)
+static MVFS_STAT* _autoconnectfs_fsop_stat(MVFS_FILESYSTEM* fs, const char* name)
 {
     __FSOPS_HEAD(NULL);
-#ifdef _DEBUG
-    fprintf(stderr,"autoconnect_ops: statfile: \"%s\"\n", name);
-#endif
     LOOKUP lu = _lookup_fs(fspriv, name);
     if (lu.fs == NULL)
     {
-	fprintf(stderr,"autoconnect_ops: couldnt allocate fs for: %s\n");
+	ERRMSG("couldnt allocate fs for: %s", name);
 	return NULL;
     }
 
@@ -198,20 +190,32 @@ static MVFS_STAT* _acfs_fsops_stat(MVFS_FILESYSTEM* fs, const char* name)
     return st;
 }
 
-static int _acfs_fsops_unlink(MVFS_FILESYSTEM* fs, const char* name)
+static int _autoconnectfs_fsop_unlink(MVFS_FILESYSTEM* fs, const char* name)
 {
     __FSOPS_HEAD(-EFAULT);
-#ifdef _DEBUG
-    fprintf(stderr,"autoconnect_ops: unlinkfile: \"%s\"\n", name);
-#endif
     LOOKUP lu = _lookup_fs(fspriv, name);
     if (lu.fs == NULL)
     {
-	fprintf(stderr,"autoconnect_ops: couldnt allocate fs for: %s\n");
+	ERRMSG("couldnt allocate fs for: %s",name);
 	return 0;
     }
 
     int ret = mvfs_fs_unlink(lu.fs, lu.filename);
+    free(lu.filename);
+    return ret;
+}
+
+static int _autoconnectfs_fsop_chmod(MVFS_FILESYSTEM* fs, const char* name, mode_t mode)
+{
+    __FSOPS_HEAD(-EFAULT);
+    LOOKUP lu = _lookup_fs(fspriv, name);
+    if (lu.fs == NULL)
+    {
+	ERRMSG("couldnt allocate fs for: %s", name);
+	return 0;
+    }
+
+    int ret = mvfs_fs_chmod(lu.fs, lu.filename, mode);
     free(lu.filename);
     return ret;
 }

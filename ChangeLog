@@ -14,6 +14,7 @@
     * mvfs_stat_dup() now checks for NULL stat -> returns NULL in that case
     * some minor fixups in default_ops
     * some fixups and sanity checks in fsops.c
+    * metacachefs: added chmod() operation
 
 ---- 0.1.0.4 release ----
 

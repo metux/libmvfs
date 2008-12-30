@@ -1,7 +1,10 @@
 /*
+    libmvfs - metux Virtual Filesystem Library
 
-    mVFS API
-    
+    General type definitions
+
+    Copyright (C) 2008 Enrico Weigelt, metux IT service <weigelt@metux.de>
+    This code is published under the terms of the GNU Public License 2.0
 */
 
 #ifndef __LIBMVFS_TYPES_H
@@ -16,6 +19,10 @@
 #include <inttypes.h>
 #include <hash.h>
 #include <mvfs/stat.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef int64_t	off64_t;
 
@@ -106,5 +113,9 @@ struct __mvfs_fs
 	void*	ptr;
     } priv;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

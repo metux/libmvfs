@@ -13,7 +13,6 @@
     id		fd
     name	filename
     ptr		DIR* pointer
-
 */
 
 #define PRIV_FD(file)			(file->priv.id)
@@ -325,7 +324,7 @@ static MVFS_STAT* mvfs_hostfs_fileops_scan(MVFS_FILE* file)
     struct dirent * ent = readdir(dir);
     if (ent == NULL)
 	return 0;
-    
+
     if ((strcmp(ent->d_name,".")==0) || (strcmp(ent->d_name,"..")==0))
 	return mvfs_hostfs_fileops_scan(file);
 

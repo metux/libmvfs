@@ -88,7 +88,7 @@ MVFS_FILESYSTEM* mvfs_fs_create_args(MVFS_ARGS* args)
 {
     if (args==NULL)
     {
-	DEBUGMSG("NULL args ... defaulting to file:/");
+	DEBUGMSG("NULL args ... defaulting to file:///");
 	return mvfs_hostfs_create_args(args);
     }
 

@@ -1,7 +1,10 @@
 /*
+    libmvfs - metux Virtual Filesystem Library
 
-    mVFS API
-    
+    Main include file
+
+    Copyright (C) 2008 Enrico Weigelt, metux IT service <weigelt@metux.de>
+    This code is published under the terms of the GNU Public License 2.0
 */
 
 #ifndef __LIBMVFS_MVFS_H

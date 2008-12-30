@@ -1,3 +1,11 @@
+/*
+    libmvfs - metux Virtual Filesystem Library
+
+    Default filesystem and file operation handlers
+
+    Copyright (C) 2008 Enrico Weigelt, metux IT service <weigelt@metux.de>
+    This code is published under the terms of the GNU Public License 2.0
+*/
 
 #ifndef __LIBMVFS_DEFAULT_OPS_H
 #define __LIBMVFS_DEFAULT_OPS_H

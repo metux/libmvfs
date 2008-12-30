@@ -1,5 +1,13 @@
+/*
+    libmvfs - metux Virtual Filesystem Library
 
-#define _DEBUG
+    Filesystem driver: 9P via libmixp
+
+    Copyright (C) 2008 Enrico Weigelt, metux IT service <weigelt@metux.de>
+    This code is published under the terms of the GNU Public License 2.0
+*/
+
+// #define _DEBUG
 
 #define _LARGEFILE64_SOURCE
 
@@ -14,6 +22,7 @@
 #include <mvfs/mvfs.h>
 #include <mvfs/default_ops.h>
 #include <mvfs/mixpfs.h>
+#include <mvfs/_utils.h>
 
 #include <9p-mixp/mixp.h>
 
@@ -86,17 +95,17 @@ typedef struct
     MIXP_DIRENT* dirptr;
 } MIXP_FILE_PRIV;
 
-#define __FILEOPS_HEAD(err);						\
-	if (file==NULL)							\
-	{								\
-	    fprintf(stderr,"%s() NULL file handle\n", __FUNCTION__);	\
-	    return err;							\
-	}								\
-	MIXP_FILE_PRIV* priv = (file->priv.ptr);			\
-	if (priv == NULL)						\
-	{								\
-	    fprintf(stderr,"%s() corrupt file handle\n", __FUNCTION__);	\
-	    return err;							\
+#define __FILEOPS_HEAD(err);				\
+	if (file==NULL)					\
+	{						\
+	    ERRMSG("NULL file handle");			\
+	    return err;					\
+	}						\
+	MIXP_FILE_PRIV* priv = (file->priv.ptr);	\
+	if (priv == NULL)				\
+	{						\
+	    ERRMSG("corrupt file handle");		\
+	    return err;					\
 	}
 
 static int __mixp_flushdir(MVFS_FILE* file)
@@ -130,12 +139,12 @@ static int __mixp_readdir(MVFS_FILE* file)
 	MIXP_STAT* stat = mixp_stat(MIXP_FS_CLIENT(file->fs), priv->pathname);
 	if (stat==NULL)
 	{
-	    fprintf(stderr,"__mixp_readdir() couldnt stat dir: \"%s\"\n", priv->pathname);
+	    DEBUGMSG("couldnt stat dir: \"%s\"", priv->pathname);
 	    return -ENOENT;
 	}
 	if ((stat->mode & P9_DMDIR) == 0)
 	{
-	    fprintf(stderr,"__mixp_readdir() file \"%s\" is not an directory\n", priv->pathname);
+	    DEBUGMSG("file \"%s\" is not an directory", priv->pathname);
 	    mixp_stat_free(stat);
 	    return -1;
 	}
@@ -145,7 +154,7 @@ static int __mixp_readdir(MVFS_FILE* file)
     fid = mixp_open(MIXP_FS_CLIENT(file->fs), priv->pathname, P9_OREAD);
     if (fid == NULL)
     {
-	fprintf(stderr,"__mixp_readdir() couldnt open file \"%s\"\n", priv->pathname);
+	DEBUGMSG("couldnt open file \"%s\"", priv->pathname);
 	return -ENOENT;
     }
     
@@ -190,11 +199,11 @@ off64_t mvfs_mixpfs_fileops_seek (MVFS_FILE* file, off64_t offset, int whence)
 	case SEEK_SET:	priv->pos = offset;	break;
 	case SEEK_CUR:	priv->pos += offset;	break;
 	case SEEK_END:	
-	    fprintf(stderr,"WARN: 9p/mixp: SEEK_END not implemented yet\n");
+	    DEBUGMSG("WARN: 9p/mixp: SEEK_END not implemented yet");
 	    file->errcode = EINVAL;
 	    return (off64_t)-1;
 	default:
-	    fprintf(stderr,"WARN: mixp::seek() unknown whence %d\n", whence);
+	    DEBUGMSG("WARN: mixp::seek() unknown whence %d", whence);
 	    file->errcode = EINVAL;
 	    return (off64_t)-1;
     }
@@ -263,7 +272,7 @@ static inline const char* __mvfs_flag2str(MVFS_FILE_FLAG f)
 int mvfs_mixpfs_fileops_setflag (MVFS_FILE* file, MVFS_FILE_FLAG flag, long value)
 {
     __FILEOPS_HEAD(-1);
-    fprintf(stderr,"mvfs_mixpfs_fileops_setflag() %s not supported\n", __mvfs_flag2str(flag));
+    DEBUGMSG("%s not supported", __mvfs_flag2str(flag));
     file->errcode = EINVAL;
     return -1;
 }
@@ -271,7 +280,7 @@ int mvfs_mixpfs_fileops_setflag (MVFS_FILE* file, MVFS_FILE_FLAG flag, long valu
 int mvfs_mixpfs_fileops_getflag (MVFS_FILE* file, MVFS_FILE_FLAG flag, long* value)
 {
     __FILEOPS_HEAD(-1);
-    fprintf(stderr,"mvfs_mixpfs_fileops_getflag() %s not supported\n", __mvfs_flag2str(flag));
+    DEBUGMSG("%s not supported", __mvfs_flag2str(flag));
     file->errcode = EINVAL;
     return -1;
 }
@@ -280,7 +289,7 @@ static inline MVFS_STAT* _convert_stat(MIXP_STAT* st)
 {
     if (st == NULL)
     {
-	fprintf(stderr,"mvfs::mixp::_convert_stat() NULL stat\n");
+	ERRMSG("NULL stat");
 	return NULL;
     }
 
@@ -364,9 +373,7 @@ MVFS_FILE* mvfs_mixpfs_fsops_open(MVFS_FILESYSTEM* fs, const char* name, mode_t 
     MIXP_CFID* fid = mixp_open(MIXP_FS_CLIENT(fs), name, m);
     if (fid == NULL)
     {
-#ifdef _DEBUG
-	fprintf(stderr,"mvfs_mixpfs_fileops_open() couldnt open file: \"%s\"\n", name);
-#endif
+	DEBUGMSG("couldnt open file: \"%s\"", name);
 	fs->errcode = ENOENT;
 	return NULL;
     }
@@ -386,7 +393,7 @@ MVFS_STAT* mvfs_mixpfs_fsops_stat(MVFS_FILESYSTEM* fs, const char* name)
 {
     if (fs==NULL)
     {
-	fprintf(stderr,"mvfs_mixpfs_fsops_stat() NULL fs passed !\n");
+	ERRMSG("NULL fs passed !");
 	return NULL;
     }
 
@@ -395,7 +402,7 @@ MVFS_STAT* mvfs_mixpfs_fsops_stat(MVFS_FILESYSTEM* fs, const char* name)
     mixp_stat_free(mst);
     if (st == NULL)
     {
-	fprintf(stderr,"mvfs_mixpfs_fsops_stat() NULL stat\n");
+	ERRMSG("NULL stat");
 	fs->errcode = EINVAL;
 	return NULL;
     }
@@ -405,7 +412,7 @@ MVFS_STAT* mvfs_mixpfs_fsops_stat(MVFS_FILESYSTEM* fs, const char* name)
 
 int mvfs_mixpfs_fsops_unlink(MVFS_FILESYSTEM* fs, const char* name)
 {
-    fprintf(stderr,"mvfs_mixp_fsops_unlink() DUMMY\n");
+    DEBUGMSG("FIXME: DUMMY");
     fs->errcode = EPERM;
     return errno;
 }
@@ -417,22 +424,21 @@ MVFS_FILESYSTEM* mvfs_mixpfs_create_args(MVFS_ARGS* args)
     
     if (path && strlen(path) && strcmp("/",path))
     {
-	fprintf(stderr,"mvfs_mixpfs_create() chroot not supported yet\n");
-	fprintf(stderr,"path=\"%s\"\n", path);
+	ERRMSG("chroot not supported yet path=\"%s\"", path);
 	return NULL;
     }
 
     MIXP_SERVER_ADDRESS* addr = mixp_srv_addr_parse(url);
     if (addr==NULL)
     {
-	fprintf(stderr, "mvfs_mixpfs_create() could not parse address \"%s\"\n", url);
+	ERRMSG("could not parse address \"%s\"", url);
 	return NULL;
     }
 
     MIXP_CLIENT* client = mixp_mount_addr(addr);
     if (client == NULL)
     {
-	fprintf(stderr, "mvfs_mixpfs_create() could not mount service @ \"%s\"\n", url);
+	ERRMSG("could not mount service @ \"%s\"", url);
 	return NULL;
     }
 
@@ -478,11 +484,7 @@ MVFS_FILE* mvfs_mixpfs_fileops_lookup(MVFS_FILE* file, const char* name)
     char* buffer = (char*)calloc(1,strlen(priv->pathname)+strlen(name)+10);    
     sprintf(buffer,"%s/%s", priv->pathname, name);
 
-#ifdef _DEBUG
-    printf("mvfs_mixpfs_fileops_lookup() name=\"%s\"\n", name);
-    printf("                             oldname=\"%s\"\n", priv->pathname);
-    printf("                             newname=\"%s\"\n", buffer);
-#endif
+    DEBUGMSG("name=\"%s\" oldname=\"%s\" newname=\"%s\"", name, priv->pathname, buffer);
 
     MVFS_FILE* newfile = mvfs_mixpfs_fsops_open(file->fs, buffer, O_RDONLY);
     free(buffer);
@@ -500,7 +502,7 @@ MVFS_STAT* mvfs_mixpfs_fileops_scan(MVFS_FILE* file)
     MIXP_STAT* st = priv->dirptr->stat;
     if (st == NULL)
     {
-	fprintf(stderr,"mvfs_mixp_fileops_scan() UH! got an empty list entry!\n");
+	ERRMSG("UH! got an empty list entry!");
 	return NULL;
     }
 

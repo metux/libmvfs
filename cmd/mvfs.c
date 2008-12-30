@@ -158,7 +158,7 @@ int main(int argc, char* argv[])
 
     MVFS_ARGS* args = mvfs_args_from_url(server_url);
     MVFS_FILESYSTEM* fs = mvfs_fs_create_args(args); 	// FIXME !!!
-    
+
     if (fs==NULL)
     {
 	fprintf(stderr,"Could not connect to filesystem \"%s\"\n", server_url);

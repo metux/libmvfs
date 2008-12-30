@@ -1,3 +1,11 @@
+/*
+    libmvfs - metux Virtual Filesystem Library
+
+    Client-side file operation frontend
+
+    Copyright (C) 2008 Enrico Weigelt, metux IT service <weigelt@metux.de>
+    This code is published under the terms of the GNU Public License 2.0
+*/
 
 #include <mvfs/types.h>
 #include <mvfs/default_ops.h>
@@ -90,6 +98,9 @@ int mvfs_stat_free(MVFS_STAT*st)
 
 MVFS_STAT* mvfs_stat_dup(MVFS_STAT* oldst)
 {
+    if (oldst == NULL)
+	return NULL;
+
     MVFS_STAT* newst = mvfs_stat_alloc(oldst->name, oldst->uid, oldst->gid);
     newst->mode  = oldst->mode;
     newst->size  = oldst->size;

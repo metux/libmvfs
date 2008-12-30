@@ -16,7 +16,8 @@
     * some fixups and sanity checks in fsops.c
     * metacachefs: added chmod() operation
     * hostfs: added mkdir(), unlink(), fixed stat/scan handling
-    
+    * fixed some linkage problem w/ libc (explicit -lc required at the end of the ld command)
+
 ---- 0.1.0.4 release ----
 
 2008-06-01	Enrico Weigelt <weigelt@metux.de>		[r578]

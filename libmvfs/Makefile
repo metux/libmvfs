@@ -9,17 +9,16 @@ SRCNAMES  = \
 	default_ops 	\
 	fileops 	\
 	fsops		\
-	hostfs_ops 	\
-	mixp_ops 	\
-	autoconnect_ops \
-	metacache_fs
+	$(FS_SRCNAMES)
+
+include _fs.*.mk
 
 NOPIC_OBJ = $(addsuffix .nopic.o, $(SRCNAMES))
 PIC_OBJ   = $(addsuffix .pic.o, $(SRCNAMES))
 UNO_OBJ   = $(addsuffix .uno, $(SRCNAMES))
 
-CFLAGS+=-I../include $(MIXP_CFLAGS) $(HASH_CFLAGS) -D_GNU_SOURCE
-LDFLAGS+=$(MIXP_LIBS) $(HASH_LIBS) -no-undefined
+CFLAGS+=-I../include $(FS_CFLAGS) $(HASH_CFLAGS) -D_GNU_SOURCE
+LDFLAGS+=$(FS_LIBS) $(HASH_LIBS) -no-undefined
 
 all:	info lib$(SONAME).a lib$(SONAME).so
 

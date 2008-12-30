@@ -15,7 +15,7 @@
     ptr		DIR* pointer
 */
 
-#define __DEBUG
+// #define __DEBUG
 
 #define PRIV_FD(file)			(file->priv.id)
 #define PRIV_NAME(file)			(file->priv.name)
@@ -361,9 +361,6 @@ static int mvfs_hostfs_fsops_chmod(MVFS_FILESYSTEM* fs, const char* name, mode_t
 
 static MVFS_SYMLINK mvfs_hostfs_fsops_readlink(MVFS_FILESYSTEM* fs, const char* path)
 {
-    DEBUGMSG("path=\"%s\"", path);
-    fprintf(stderr,"hostfs: readlink: path=\"%s\"\n", path);
-
     MVFS_SYMLINK link;
     if (readlink(path, (char*)&link.target, sizeof(link.target)) == -1)
 	link.errcode = errno;

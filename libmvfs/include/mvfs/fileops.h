@@ -54,7 +54,6 @@ void mvfs_strmode(mode_t mode, char* p);
 
 MVFS_FILESYSTEM* mvfs_fs_create_args(MVFS_ARGS* args);
 
-
 static inline int _mvfs_check_magic(MVFS_FILESYSTEM* fs, const char* magic, const char* fsname)
 {
     if (fs == NULL)

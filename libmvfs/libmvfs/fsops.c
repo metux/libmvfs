@@ -88,14 +88,14 @@ MVFS_FILESYSTEM* mvfs_fs_create_args(MVFS_ARGS* args)
 {
     if (args==NULL)
     {
-	ERRMSG("NULL args ... defaulting to file:/");
+	DEBUGMSG("NULL args ... defaulting to file:/");
 	return mvfs_hostfs_create_args(args);
     }
 
     const char* type = mvfs_args_get(args,"type");
     if (type==NULL)
     {
-	ERRMSG("missing type ... defaulting to \"file\"");
+	DEBUGMSG("missing type ... defaulting to \"file\"");
 	return mvfs_hostfs_create_args(args);
     }
 
@@ -103,7 +103,9 @@ MVFS_FILESYSTEM* mvfs_fs_create_args(MVFS_ARGS* args)
 	return mvfs_hostfs_create_args(args);
     if (strcmp(type,"local")==0)
 	return mvfs_hostfs_create_args(args);
-    if ((strcmp(type,"ninep")==0) || (strcmp(type,"9p")==0))
+    if (strcmp(type,"ninep")==0)
+	return mvfs_hostfs_create_args(args);
+    if (strcmp(type,"9p")==0)
 	return mvfs_mixpfs_create_args(args);
     if (strcmp(type,"fish")==0)
 	return mvfs_fishfs_create_args(args);

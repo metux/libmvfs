@@ -5,14 +5,16 @@
 
     Copyright (C) 2008 Enrico Weigelt, metux IT service <weigelt@metux.de>
     This code is published under the terms of the GNU Public License 2.0
-*/
 
-//
-//	FD private data layout
-//
-//	id	fd
-//	name	filename
-//	ptr	DIR* pointer
+    ----
+
+    FD private data layout
+    
+    id		fd
+    name	filename
+    ptr		DIR* pointer
+
+*/
 
 #define PRIV_FD(file)			(file->priv.id)
 #define PRIV_NAME(file)			(file->priv.name)
@@ -157,7 +159,7 @@ static MVFS_STAT* mvfs_stat_from_unix(const char* name, struct stat s)
 
     const char* uid="???";
     const char* gid="???";
-    
+
     if (pw)
 	uid = pw->pw_name;
     if (gr)
@@ -189,15 +191,6 @@ static MVFS_STAT* mvfs_hostfs_fileops_stat(MVFS_FILE* fp)
 
 static MVFS_FILE* mvfs_hostfs_fsops_open(MVFS_FILESYSTEM* fs, const char* name, mode_t mode)
 {
-    DEBUGMSG("XXX mvfs_hostfs_fsops_open() name=\"%s\" %d\n", name, mode);
-
-    if (mode & O_CREAT)
-	DEBUGMSG("Flag: CREAT");
-    if (mode & O_WRONLY)
-	DEBUGMSG("Flag: WRONLY");
-    if (mode & O_RDONLY)
-	DEBUGMSG("Flag: RDONLY");
-
     int fd = open(name, mode);
     if (fd<0)
     {
@@ -205,8 +198,6 @@ static MVFS_FILE* mvfs_hostfs_fsops_open(MVFS_FILESYSTEM* fs, const char* name, 
 	ERRMSG("error opening file: %s", strerror(errno));
 	return NULL;
     }
-
-    DEBUGMSG("file opened: %d", fd);
 
     MVFS_FILE* file = mvfs_file_alloc(fs,hostfs_fileops);
     file->priv.name = strdup(name);

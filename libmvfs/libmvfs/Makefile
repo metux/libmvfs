@@ -1,6 +1,6 @@
 
 SONAME=mvfs
-LIBC_NONSHARED=/usr/lib/libc_nonshared.a
+LIBC_LIBS=-lc
 
 SRCNAMES  = sock_get_line	\
 	    util		\
@@ -23,7 +23,7 @@ PIC_OBJ   = $(addsuffix .pic.o, $(SRCNAMES))
 UNO_OBJ   = $(addsuffix .uno, $(SRCNAMES))
 
 CFLAGS+=-I../include $(MIXP_CFLAGS) $(HASH_CFLAGS) -D_GNU_SOURCE
-LDFLAGS+=$(MIXP_LIBS) $(HASH_LIBS) -no-undefined 
+LDFLAGS+=$(MIXP_LIBS) $(HASH_LIBS) -no-undefined
 
 all:	info lib$(SONAME).a lib$(SONAME).so
 
@@ -35,7 +35,7 @@ include ../build.mk
 
 lib$(SONAME).a::	$(NOPIC_OBJ)
 
-lib$(SONAME).so::	$(PIC_OBJ) $(LIBC_NONSHARED)
+lib$(SONAME).so::	$(PIC_OBJ)
 
 install:	lib$(SONAME).a	lib$(SONAME).so
 	mkdir -p $(DESTDIR)$(LIBDIR)

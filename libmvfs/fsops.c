@@ -99,9 +99,13 @@ MVFS_FILESYSTEM* mvfs_fs_create_args(MVFS_ARGS* args)
 	return mvfs_hostfs_create_args(args);
     }
 
-    if ((strcmp(type,"file")==0) || (strcmp(type,"local")==0))
+    if (strcmp(type,"file")==0)
+	return mvfs_hostfs_create_args(args);    
+    if (strcmp(type,"local")==0)
 	return mvfs_hostfs_create_args(args);
-    if ((strcmp(type,"ninep")==0) || (strcmp(type,"9p")==0))
+    if (strcmp(type,"ninep")==0) 
+	return mvfs_mixpfs_create_args(args);
+    if (strcmp(type,"9p")==0)
 	return mvfs_mixpfs_create_args(args);
 
     ERRMSG("unsupported type \"%s\"", type);

@@ -8,8 +8,8 @@
 
     ----
 
-    FD private data layout
-    
+    FD private data layout:
+
     id		fd
     name	filename
     ptr		DIR* pointer
@@ -185,7 +185,7 @@ static MVFS_STAT* mvfs_hostfs_fileops_stat(MVFS_FILE* fp)
 	fp->fs->errcode = errno;
 	return NULL;
     }
-    
+
     return mvfs_stat_from_unix(PRIV_NAME(fp), ust);
 }
 

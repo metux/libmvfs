@@ -27,14 +27,6 @@
 	}						\
     }
 
-MVFS_FILE* mvfs_fs_openfile(MVFS_FILESYSTEM* fs, const char* name, mode_t mode)
-{
-    __CHECK_FS(NULL);
-    if (fs->ops.openfile == NULL)
-	return mvfs_default_fsops_openfile(fs, name, mode);
-    return fs->ops.openfile(fs, name, mode);
-}
-
 MVFS_FILESYSTEM* mvfs_fs_alloc(MVFS_FILESYSTEM_OPS ops, const char* magic)
 {
     MVFS_FILESYSTEM* fs = calloc(sizeof(MVFS_FILESYSTEM),1);
@@ -42,6 +34,14 @@ MVFS_FILESYSTEM* mvfs_fs_alloc(MVFS_FILESYSTEM_OPS ops, const char* magic)
     fs->ops      = ops;
     fs->magic    = strdup(magic);
     return fs;
+}
+
+MVFS_FILE* mvfs_fs_openfile(MVFS_FILESYSTEM* fs, const char* name, mode_t mode)
+{
+    __CHECK_FS(NULL);
+    if (fs->ops.openfile == NULL)
+	return mvfs_default_fsops_openfile(fs, name, mode);
+    return fs->ops.openfile(fs, name, mode);
 }
 
 MVFS_STAT* mvfs_fs_statfile(MVFS_FILESYSTEM* fs, const char* filename)
@@ -100,10 +100,10 @@ MVFS_FILESYSTEM* mvfs_fs_create_args(MVFS_ARGS* args)
     }
 
     if (strcmp(type,"file")==0)
-	return mvfs_hostfs_create_args(args);    
+	return mvfs_hostfs_create_args(args);
     if (strcmp(type,"local")==0)
 	return mvfs_hostfs_create_args(args);
-    if (strcmp(type,"ninep")==0) 
+    if (strcmp(type,"ninep")==0)
 	return mvfs_mixpfs_create_args(args);
     if (strcmp(type,"9p")==0)
 	return mvfs_mixpfs_create_args(args);

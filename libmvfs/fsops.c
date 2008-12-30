@@ -88,23 +88,23 @@ MVFS_FILESYSTEM* mvfs_fs_create_args(MVFS_ARGS* args)
 {
     if (args==NULL)
     {
-	fprintf(stderr,"mvfs_fs_create() NULL args ... defaulting to file:/");
+	DEBUGMSG("NULL args ... defaulting to file:///");
 	return mvfs_hostfs_create_args(args);
     }
 
     const char* type = mvfs_args_get(args,"type");
     if (type==NULL)
     {
-	fprintf(stderr,"mvfs_fs_create() missing type ... defaulting to \"file\"\n");
+	DEBUGMSG("missing type ... defaulting to \"file\"");
 	return mvfs_hostfs_create_args(args);
     }
 
-    if (strcmp(type,"file")==0)
+    if ((strcmp(type,"file")==0) || (strcmp(type,"local")==0))
 	return mvfs_hostfs_create_args(args);
     if ((strcmp(type,"ninep")==0) || (strcmp(type,"9p")==0))
 	return mvfs_mixpfs_create_args(args);
-    
-    fprintf(stderr,"mvfs_fs_create() unsupported type \"%s\"\n", type);
+
+    ERRMSG("unsupported type \"%s\"", type);
     return NULL;
 }
 

@@ -1,5 +1,6 @@
 
 SONAME=mvfs
+LIBC_LIBS=-lc
 
 SRCNAMES  = \
 	strmode		\
@@ -18,7 +19,7 @@ PIC_OBJ   = $(addsuffix .pic.o, $(SRCNAMES))
 UNO_OBJ   = $(addsuffix .uno, $(SRCNAMES))
 
 CFLAGS+=-I../include $(MIXP_CFLAGS) $(HASH_CFLAGS) -D_GNU_SOURCE
-LDFLAGS+=$(MIXP_LIBS) $(HASH_LIBS) -lc -no-undefined
+LDFLAGS+=$(MIXP_LIBS) $(HASH_LIBS) -no-undefined
 
 all:	info lib$(SONAME).a lib$(SONAME).so
 

@@ -1,3 +1,11 @@
+/*
+    libmvfs - metux Virtual Filesystem Library
+
+    Filesystem driver: local filesystem
+
+    Copyright (C) 2008 Enrico Weigelt, metux IT service <weigelt@metux.de>
+    This code is published under the terms of the GNU Public License 2.0
+*/
 
 //
 //	FD private data layout

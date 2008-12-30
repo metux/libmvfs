@@ -1,38 +1,18 @@
-/* Virtual File System: FISH implementation for transfering files over
-   shell connections.
-
-   Copyright (C) 1998 The Free Software Foundation
-   
-   Written by: 1998 Pavel Machek
-   Spaces fix: 2000 Michal Svec
-
-   Derived from ftpfs.c.
-   
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public License
-   as published by the Free Software Foundation; either version 2 of
-   the License, or (at your option) any later version.
-   
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU Library General Public License for more details.
-
-   You should have received a copy of the GNU Library General Public
-   License along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
-
 /*
- * Read README.fish for protocol specification.
- *
- * Syntax of path is: /#sh:user@host[:Cr]/path
- *	where C means you want compressed connection,
- *	and r means you want to use rsh
- *
- * Namespace: fish_vfs_ops exported.
- */
+    libmvfs - metux Virtual Filesystem Library
+
+    Filesystem driver: FISH-fs (filetransfer via rsh or ssh)
+
+    Based on mc's fishfs-implementation, by Paval Machek+Michal Svec
+    
+    Copyright (C) 2008 Enrico Weigelt, metux IT service <weigelt@metux.de>
+    This code is published under the terms of the GNU Public License 2.0
+*/
+
+// WARNING: still in an very early and incomplete state
 
 /* Define this if your ssh can take -I option */
+// #define HAVE_HACKED_SSH
 
 //
 //	FD private data layout

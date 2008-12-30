@@ -1,3 +1,11 @@
+/*
+    libmvfs - metux Virtual Filesystem Library
+
+    Propertylist-based filesystem API
+
+    Copyright (C) 2008 Enrico Weigelt, metux IT service <weigelt@metux.de>
+    This code is published under the terms of the GNU Public License 2.0
+*/
 
 #ifndef __IXPSERV_PROPERTYLIST_OPS_H
 #define __IXPSERV_PROPERTYLIST_OPS_H
@@ -5,6 +13,10 @@
 #include <mvfs/mvfs.h>
 #include <malloc.h>
 #include <memory.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct _MVFS_PROPERTYLIST_DEF MVFS_PROPERTYLIST_DEF;
 typedef struct _MVFS_PROPERTYLIST_ENT MVFS_PROPERTYLIST_ENT;
@@ -58,5 +70,9 @@ MVFS_PROPERTYLIST_DEF* mvfs_propertylist_create_def(
     const char* gid,
     void* private
 );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

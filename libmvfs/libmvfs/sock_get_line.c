@@ -1,4 +1,14 @@
+/*
+    libmvfs - metux Virtual Filesystem Library
+
+    Socket reading helper
+
+    Copyright (C) 2008 Enrico Weigelt, metux IT service <weigelt@metux.de>
+    This code is published under the terms of the GNU Public License 2.0
+*/
+
 #include <stdio.h>
+#include <mvfs/_utils.h>
 
 int __mvfs_sock_get_line (FILE* logfile, int sock, char *buf, int buf_len, char term)
 {

@@ -1,3 +1,12 @@
+/*
+    libmvfs - metux Virtual Filesystem Library
+
+    Client-side file operation frontend
+
+    Copyright (C) 2008 Enrico Weigelt, metux IT service <weigelt@metux.de>
+    This code is published under the terms of the GNU Public License 2.0
+*/
+
 #include <mvfs/types.h>
 #include <mvfs/default_ops.h>
 

@@ -1,12 +1,25 @@
+/*
+    libmvfs - metux Virtual Filesystem Library
+
+    Argument list handling
+
+    Copyright (C) 2008 Enrico Weigelt, metux IT service <weigelt@metux.de>
+    This code is published under the terms of the GNU Public License 2.0
+*/
+
 #include <string.h>
 #include <malloc.h>
 #include <hash.h>
 #include <stdio.h>
 #include <errno.h>
-
 #include <mvfs/mvfs.h>
 #include <mvfs/url.h>
 #include <mvfs/_utils.h>
+
+struct __mvfs_args
+{
+    hash hashtable;
+};
 
 // not very efficient yet, but should work for now
 

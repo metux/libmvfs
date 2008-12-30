@@ -1,10 +1,15 @@
-//
-// this is an simple auto-connecting overlay fs.
-// it takes in URLs and automatically loads/connects backend fs'es on demand
-// so an client doesn't have to cope with individual filesystems anymore
-//
-// the functionality is a little bit like MC's vfs
-//
+/*
+    libmvfs - metux Virtual Filesystem Library
+
+    This is an simple auto-connecting overlay fs.
+    It takes in URLs and automatically loads/connects backend fs'es on demand,
+    so an client doesn't have to cope with individual filesystems anymore
+
+    The functionality is a little bit like MC's vfs
+
+    Copyright (C) 2008 Enrico Weigelt, metux IT service <weigelt@metux.de>
+    This code is published under the terms of the GNU Public License 2.0
+*/
 
 #define __DEBUG
 

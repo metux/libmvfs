@@ -1,12 +1,16 @@
+/*
+    libmvfs - metux Virtual Filesystem Library
+
+    Internal helpers - don't use outside of libmvfs
+
+    Copyright (C) 2008 Enrico Weigelt, metux IT service <weigelt@metux.de>
+    This code is published under the terms of the GNU Public License 2.0
+*/
 
 #ifndef __MVFS_INTERNAL_UTILS_H
 #define __MVFS_INTERNAL_UTILS_H
 
 #include <stdio.h>
-
-/* internal utils ... DO NOT use in clients */
-int __mvfs_sock_get_line (FILE* logfile, int sock, char *buf, int buf_len, char term);
-int mvfs_decode_filetype (char t);
 
 #ifndef ERROR_CHANNEL	
 #define ERROR_CHANNEL	stderr
@@ -36,6 +40,18 @@ int mvfs_decode_filetype (char t);
     }
 #else
 #define DEBUGMSG(text...)
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* internal utils ... DO NOT use in clients */
+int __mvfs_sock_get_line (FILE* logfile, int sock, char *buf, int buf_len, char term);
+int mvfs_decode_filetype (char t);
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

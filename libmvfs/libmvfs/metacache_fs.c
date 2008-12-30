@@ -1,8 +1,11 @@
-//
-// metadata caching filesystem
-//
+/*
+    libmvfs - metux Virtual Filesystem Library
 
-// #define __DEBUG_METACACHEFS
+    Filesystem driver: metadata-caching fs
+
+    Copyright (C) 2008 Enrico Weigelt, metux IT service <weigelt@metux.de>
+    This code is published under the terms of the GNU Public License 2.0
+*/
 
 #define _LARGEFILE64_SOURCE
 

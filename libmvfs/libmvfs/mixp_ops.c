@@ -1,5 +1,13 @@
+/*
+    libmvfs - metux Virtual Filesystem Library
 
-#define _DEBUG
+    Filesystem driver: 9P via libmixp
+
+    Copyright (C) 2008 Enrico Weigelt, metux IT service <weigelt@metux.de>
+    This code is published under the terms of the GNU Public License 2.0
+*/
+
+// #define _DEBUG
 
 #define _LARGEFILE64_SOURCE
 

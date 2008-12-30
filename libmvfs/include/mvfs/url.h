@@ -1,9 +1,26 @@
+/*
+    libmvfs - metux Virtual Filesystem Library
+
+    Simple URL Parsing API
+
+    Copyright (C) 2008 Enrico Weigelt, metux IT service <weigelt@metux.de>
+    This code is published under the terms of the GNU Public License 2.0
+*/
 
 #ifndef __MVFS_URL_H
 #define __MVFS_URL_H
 
-// maximum URL size
+/* maximum URL size */
 #define MVFS_URL_MAX	2048
+
+#define MVFS_ERR_URL_SUCCESS		0
+#define MVFS_ERR_URL_INCOMPLETE		-1
+#define MVFS_ERR_URL_MISSING_TYPE	-2
+#define MVFS_ERR_URL_MISSING_SLASHSLASH	-3
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct __mvfs_url
 {
@@ -20,11 +37,10 @@ typedef struct __mvfs_url
     char* pathname;
 } MVFS_URL;
 
-#define MVFS_ERR_URL_SUCCESS		0
-#define MVFS_ERR_URL_INCOMPLETE		-1
-#define MVFS_ERR_URL_MISSING_TYPE	-2
-#define MVFS_ERR_URL_MISSING_SLASHSLASH	-3
-
 MVFS_URL* mvfs_url_parse(const char* url);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

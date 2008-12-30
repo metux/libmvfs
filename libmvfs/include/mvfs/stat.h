@@ -1,7 +1,10 @@
 /*
+    libmvfs - metux Virtual Filesystem Library
 
-    mVFS API
+    File-Status API
 
+    Copyright (C) 2008 Enrico Weigelt, metux IT service <weigelt@metux.de>
+    This code is published under the terms of the GNU Public License 2.0
 */
 
 #ifndef __LIBMVFS_STAT_H
@@ -16,6 +19,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <inttypes.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct __mvfs_stat      MVFS_STAT;
 
@@ -63,5 +70,9 @@ static inline struct stat mvfs_stat_to_unix_unref(MVFS_STAT* stat)
     mvfs_stat_free(stat);
     return s2;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

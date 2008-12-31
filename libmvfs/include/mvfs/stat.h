@@ -45,32 +45,6 @@ MVFS_STAT* mvfs_stat_alloc (const char* name, const char* uid, const char* gid);
 /* Duplicate (copy) an given MVFS_STAT structure */
 MVFS_STAT* mvfs_stat_dup   (MVFS_STAT* st);
 
-// convert an MVFS_STAT to unix struct stat
-static inline struct stat mvfs_stat_to_unix(MVFS_STAT* st)
-{
-    if (st==NULL)
-	return ((struct stat){});
-
-    return ((struct stat)
-    {
-	.st_mode  = st->mode,
-	.st_atime = st->atime,
-	.st_mtime = st->mtime,
-	.st_ctime = st->ctime,
-	.st_size  = st->size,
-	.st_uid   = 0,			// FIXME !!!
-	.st_gid   = 0,			// FIXME !!!
-	.st_nlink = 1
-    });
-}
-
-static inline struct stat mvfs_stat_to_unix_unref(MVFS_STAT* stat)
-{
-    struct stat s2 = mvfs_stat_to_unix(stat);
-    mvfs_stat_free(stat);
-    return s2;
-}
-
 #ifdef __cplusplus
 }
 #endif

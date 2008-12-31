@@ -1,4 +1,0 @@
-
-Note: the interface is not stabelized yet, especially on new fs'es,
-eg. fish is (once finished) a good candidate for being moved out 
-to its own lib.

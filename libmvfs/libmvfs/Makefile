@@ -9,8 +9,6 @@ SRCNAMES  = \
 	default_ops 	\
 	fileops 	\
 	fsops		\
-	sock_get_line	\
-	util		\
 	$(FS_SRCNAMES)
 
 include _fs.*.mk

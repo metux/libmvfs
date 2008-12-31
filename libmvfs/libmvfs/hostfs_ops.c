@@ -15,6 +15,8 @@
     ptr		DIR* pointer
 */
 
+// #define __DEBUG
+
 #define PRIV_FD(file)			(file->priv.id)
 #define PRIV_NAME(file)			(file->priv.name)
 #define PRIV_DIRP(file)			((DIR*)(file->priv.ptr))

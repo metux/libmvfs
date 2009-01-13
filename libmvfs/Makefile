@@ -1,34 +1,43 @@
-#
-# Author(s): Enrico Weigelt <weigelt@metux.de>
-#
 
-all:	lib	libmvfs.pc	client
+SONAME=mvfs
+LIBC_LIBS=-lc
 
-include ./build.mk
+SRCNAMES  = \
+	strmode		\
+	urlparse	\
+	arglist		\
+	default_ops 	\
+	fileops 	\
+	fsops		\
+	$(FS_SRCNAMES)
 
-lib:
-	make -C libmvfs
+include _fs.*.mk
 
-client:
-	make -C cmd
+NOPIC_OBJ = $(addsuffix .nopic.o, $(SRCNAMES))
+PIC_OBJ   = $(addsuffix .pic.o, $(SRCNAMES))
+UNO_OBJ   = $(addsuffix .uno, $(SRCNAMES))
 
-install-lib:	
-	make -C libmvfs install
+CFLAGS+=-I../include $(FS_CFLAGS) $(HASH_CFLAGS) -D_GNU_SOURCE
+LDFLAGS+=$(FS_LIBS) $(HASH_LIBS) -no-undefined
 
-install-pkgconfig:	libmvfs.pc
-	mkdir -p $(DESTDIR)$(PKGCONFIGDIR)
-	cp libmvfs.pc $(DESTDIR)$(PKGCONFIGDIR)
-	
-install-includes:	include/mvfs/*.h
-	mkdir -p $(DESTDIR)$(INCLUDEDIR)/mvfs
-	for i in include/mvfs/*.h ; do cp $$i $(DESTDIR)$(INCLUDEDIR)/mvfs ; done
+all:	info lib$(SONAME).a lib$(SONAME).so
 
-install:	install-pkgconfig install-includes install-lib
+info:
+	echo "CFLAGS=$(CFLAGS)"
+	echo "LDFLAGS=$(LDFLAGS)"
 
-uno-check:
-	make -C libmvfs uno-check
+include ../build.mk
 
-clean:	
-	rm -f *.o *.a *.so libmvfs.pc
-	make -C libmvfs clean
-	make -C cmd clean
+lib$(SONAME).a::	$(NOPIC_OBJ)
+
+lib$(SONAME).so::	$(PIC_OBJ)
+
+install:	lib$(SONAME).a	lib$(SONAME).so
+	mkdir -p $(DESTDIR)$(LIBDIR)
+	cp lib$(SONAME).a lib$(SONAME).so $(DESTDIR)$(LIBDIR)
+	chmod ugo+x $(DESTDIR)$(LIBDIR)/lib$(SONAME).so
+
+uno-check:	$(UNO_OBJ)
+
+clean:
+	rm -f *.o *.a *.so

@@ -1,0 +1,7 @@
+*.o
+*.so
+*.a
+*.pc
+localbuild
+libmvfs/cmd/mvfs
+libmvfs/cmd/urltest

@@ -3,5 +3,5 @@
 *.a
 *.pc
 localbuild
-libmvfs/cmd/mvfs
-libmvfs/cmd/urltest
+cmd/mvfs
+cmd/urltest

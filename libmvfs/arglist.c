@@ -35,7 +35,6 @@ MVFS_ARGS* mvfs_args_alloc()
 	free(args);
 	return NULL;
     }
-    
     return args;
 }
 
@@ -43,11 +42,11 @@ const char* mvfs_args_get(MVFS_ARGS* args, const char* name)
 {
     if (args==NULL)
 	return NULL;
-    
+
     const char* str = NULL;
     if (hash_retrieve(&(args->hashtable), (char*)name, (void**)&str))
 	return str;
-    
+
     return NULL;
 }
 
@@ -97,18 +96,50 @@ MVFS_ARGS* mvfs_args_from_url(const char* url)
 
     MVFS_URL* u = mvfs_url_parse(url);
     MVFS_ARGS* args = mvfs_args_alloc();
-    
-    mvfs_args_set(args,"url",      url);
-    mvfs_args_set(args,"path",     u->pathname);
-    mvfs_args_set(args,"host",     u->hostname);
-    mvfs_args_set(args,"port",     u->port);
-    mvfs_args_set(args,"username", u->username);
-    mvfs_args_set(args,"secret",   u->secret);
 
     if ((!(u->type)) || (!(u->type[0])))
-	mvfs_args_set(args,"type", "local");
-    else
-	mvfs_args_set(args,"type", u->type);
+	u->type = "local";
 
+    size_t s = strlen(url)*2;
+    char* buffer = (char*)malloc(strlen(url)*2);
+
+    strcpy(buffer, u->type);
+    strcat(buffer, "://");
+    if (u->username)
+    {
+	strcat(buffer, u->username);
+	if (u->secret)
+	{
+	    strcat(buffer, ":");
+	    strcat(buffer, u->secret);
+	}
+	strcat(buffer, "@");
+    }
+    if (u->hostname)
+    {
+	strcat(buffer, u->hostname);
+	if (u->port)
+	{
+	    strcat(buffer, ":");
+	    strcat(buffer, u->port);
+	}
+    }
+    strcat(buffer, "/");
+    if (u->pathname)
+    {
+	const char* p = u->pathname;
+	while (p[0] == '/')
+	    p++;
+	strcat(buffer, p);
+    }
+
+    mvfs_args_set(args,"url",            url);
+    mvfs_args_set(args,"path",           u->pathname);
+    mvfs_args_set(args,"host",           u->hostname);
+    mvfs_args_set(args,"port",           u->port);
+    mvfs_args_set(args,"username",       u->username);
+    mvfs_args_set(args,"secret",         u->secret);
+    mvfs_args_set(args,"type",           u->type);
+    mvfs_args_set(args,"normalized-url", buffer);
     return args;
 }

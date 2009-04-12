@@ -298,7 +298,7 @@ static MVFS_FILE* mvfs_hostfs_fileops_lookup  (MVFS_FILE* file, const char* name
     f2->priv.name = strdup(name);
     f2->priv.id   = fd;
 
-    return file;
+    return f2;
 }
 
 static DIR* mvfs_hostfs_fileops_init_dir(MVFS_FILE* file)

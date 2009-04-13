@@ -7,7 +7,7 @@
     This code is published under the terms of the GNU Public License 2.0
 */
 
-// #define _DEBUG
+#define __DEBUG
 
 #define _LARGEFILE64_SOURCE
 
@@ -157,7 +157,9 @@ static int __mixp_readdir(MVFS_FILE* file)
 	DEBUGMSG("couldnt open file \"%s\"", priv->pathname);
 	return -ENOENT;
     }
-    
+    DEBUGMSG("successfully opened dir: \"%s\"", priv->pathname);
+    fprintf(stderr,"mixp:readdir() opened dir: \"%s\"\n", priv->pathname);
+
     {
 	int count;
 	MIXP_STAT* newstat;
@@ -377,7 +379,9 @@ MVFS_FILE* mvfs_mixpfs_fsops_open(MVFS_FILESYSTEM* fs, const char* name, mode_t 
 	fs->errcode = ENOENT;
 	return NULL;
     }
-    
+    else
+	fprintf(stderr,"mvfs_mixpfs_fsops_open() opened file: \"%s\"\n", name);
+
     MVFS_FILE* file = mvfs_file_alloc(fs,mixpfs_fileops);
     MIXP_FILE_PRIV* priv = calloc(1,sizeof(MIXP_FILE_PRIV));
     file->priv.ptr = priv;

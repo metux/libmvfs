@@ -112,9 +112,11 @@ static LOOKUP _lookup_fs(ACFS_FS_PRIV* priv, const char* file)
     const char* port = mvfs_args_get(args,"port");
     const char* path = mvfs_args_get(args,"path");
 
-    if (!path)	path = "/";
-    if (!host)  host = "";
-    if (!type)  type = "file";
+    DEBUGMSG("path=\"%s\" host=\"%s\" type=\"%s\"", path, host, type);
+
+    if (!path) path = "/";
+    if (!host) host = "";
+    if (!type) type = "file";
 
     char buffer[8194];
     if ((port) && strlen(port))
@@ -131,7 +133,7 @@ static LOOKUP _lookup_fs(ACFS_FS_PRIV* priv, const char* file)
     {
 	if (!strcmp(p->url,buffer))
 	{
-	    DEBUGMSG("found an existing connection for: %s (%s", file, buffer);
+	    DEBUGMSG("found an existing connection for: %s (key %s)", file, buffer);
 	    ret.fs       = p->fs;
 	    ret.filename = strdup(path);
 	    goto out;
@@ -139,6 +141,9 @@ static LOOKUP _lookup_fs(ACFS_FS_PRIV* priv, const char* file)
     }
 
     DEBUGMSG("Dont have an connection for %s (%s) yet - trying to connect ...", file, buffer);
+
+    // this has to be done already here, since the path string will be overwritten!
+    ret.filename = strdup(path);
 
     // prevent attempting to chroot
     mvfs_args_set(args, "path", "");
@@ -158,7 +163,6 @@ static LOOKUP _lookup_fs(ACFS_FS_PRIV* priv, const char* file)
     DEBUGMSG("Now opening file: %s via fs", file);
 
     ret.fs       = fs;
-    ret.filename = strdup(path);
 
 err:
 

@@ -11,13 +11,15 @@ SRCNAMES  = \
 	fsops		\
 	$(FS_SRCNAMES)
 
+CFLAGS+=-I../include -D_GNU_SOURCE
+
 include _fs.*.mk
 
 NOPIC_OBJ = $(addsuffix .nopic.o, $(SRCNAMES))
 PIC_OBJ   = $(addsuffix .pic.o, $(SRCNAMES))
 UNO_OBJ   = $(addsuffix .uno, $(SRCNAMES))
 
-CFLAGS+=-I../include $(FS_CFLAGS) $(HASH_CFLAGS) -D_GNU_SOURCE
+CFLAGS+=$(FS_CFLAGS) $(HASH_CFLAGS)
 LDFLAGS+=$(FS_LIBS) $(HASH_LIBS) -no-undefined
 
 all:	info lib$(SONAME).a lib$(SONAME).so

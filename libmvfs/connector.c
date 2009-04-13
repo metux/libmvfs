@@ -11,19 +11,19 @@
     This code is published under the terms of the GNU Public License 2.0
 */
 
-#include "mvfs-internal.h"
+#define __DEBUG
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+
+#include <mvfs/args.h>
 #include <mvfs/mvfs.h>
-#include <mvfs/autoconnect_ops.h>
+#include <mvfs/connector.h>
 #include <mvfs/_utils.h>
 
-#define FS_MAGIC	"metux/autoconnect-fs-1.0"
-
-#ifdef _MVFS_SANITY_CHECKS
+#define FS_MAGIC	"metux/connector-fs-1.0"
 
 #define __FILEOPS_HEAD(err);					\
 	if (file==NULL)						\
@@ -31,7 +31,7 @@
 	    ERRMSG("NULL file handle");				\
 	    return err;						\
 	}							\
-	METACACHE_FILE_PRIV* priv = (file->priv.ptr);		\
+	CONNECTOR_FILE_PRIV* priv = (file->priv.ptr);		\
 	if (priv == NULL)					\
 	{							\
 	    ERRMSG("corrupt file handle");			\
@@ -42,7 +42,7 @@
 	    ERRMSG("NULL file handle");				\
 	    return err;						\
 	}							\
-	ACFS_FS_PRIV* fspriv = (file->fs->priv.ptr);		\
+	MVFS_CONNECTOR* fspriv = (file->fs->priv.ptr);		\
 	if (fspriv == NULL)					\
 	{							\
 	    ERRMSG("corrupt fs handle");			\
@@ -60,41 +60,35 @@
 	    ERRMSG("fs magic mismatch");			\
 	    return err;						\
 	}							\
-	ACFS_FS_PRIV* fspriv = (fs->priv.ptr);			\
+	MVFS_CONNECTOR* fspriv = (fs->priv.ptr);			\
 	if (fspriv == NULL)					\
 	{							\
 	    ERRMSG("corrupt fs handle");			\
 	    return err;						\
 	}
 
-#else
+static MVFS_STAT*   _connectorfs_fsop_stat     (MVFS_FILESYSTEM* fs, const char* name);
+static MVFS_FILE*   _connectorfs_fsop_open     (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
+static int          _connectorfs_fsop_unlink   (MVFS_FILESYSTEM* fs, const char* name);
+static int          _connectorfs_fsop_chmod    (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
+static MVFS_SYMLINK _connectorfs_fsop_readlink (MVFS_FILESYSTEM* fs, const char* name);
 
-#define __FILEOPS_HEAD(err);					\
-	METACACHE_FILE_PRIV* priv = (file->priv.ptr);		\
-	ACFS_FS_PRIV* fspriv = (file->fs->priv.ptr);		\
-
-#define __FSOPS_HEAD(err);					\
-	ACFS_FS_PRIV* fspriv = (fs->priv.ptr);			\
-
-#endif
-
-static MVFS_STAT*   _autoconnectfs_fsop_stat     (MVFS_FILESYSTEM* fs, const char* name);
-static MVFS_FILE*   _autoconnectfs_fsop_open     (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
-static int          _autoconnectfs_fsop_unlink   (MVFS_FILESYSTEM* fs, const char* name);
-static int          _autoconnectfs_fsop_chmod    (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);
-static MVFS_SYMLINK _autoconnectfs_fsop_readlink (MVFS_FILESYSTEM* fs, const char* name);
-
-static MVFS_FILESYSTEM_OPS _fsops =
+static MVFS_FILESYSTEM_OPS _fsops = 
 {
-    .openfile	= _autoconnectfs_fsop_open,
-    .unlink	= _autoconnectfs_fsop_unlink,
-    .stat	= _autoconnectfs_fsop_stat,
-    .chmod      = _autoconnectfs_fsop_chmod,
-    .readlink   = _autoconnectfs_fsop_readlink
+    .openfile	= _connectorfs_fsop_open,
+    .unlink	= _connectorfs_fsop_unlink,
+    .stat	= _connectorfs_fsop_stat,
+    .chmod      = _connectorfs_fsop_chmod,
+    .readlink   = _connectorfs_fsop_readlink
 };
 
 typedef struct _FSENT		FSENT;
 typedef struct _LOOKUP		LOOKUP;
+typedef struct
+{
+    FSENT* filesystems;			/* already opened filesystems */
+    MVFS_CONNECTOR_PREFIXMAP* prefixmap;	/* prefix mappings */
+} MVFS_CONNECTOR;
 
 // should use an hashtable
 struct _FSENT
@@ -104,67 +98,72 @@ struct _FSENT
     FSENT*           next;
 };
 
-typedef struct
-{
-    FSENT* filesystems;
-} ACFS_FS_PRIV;
-
 struct _LOOKUP
 {
     MVFS_FILESYSTEM* fs;
     char*            filename;
 };
 
-static LOOKUP _lookup_fs(ACFS_FS_PRIV* priv, const char* file)
+/* -- lookup an prefix-map for given urn -- */
+static MVFS_CONNECTOR_PREFIXMAP* _lookup_prefix(MVFS_CONNECTOR* priv, const char* urn)
+{
+    MVFS_CONNECTOR_PREFIXMAP* walk;
+    for (walk = priv->prefixmap; walk; walk=walk->next)
+    {
+	size_t l = strlen(walk->prefix);
+	if (strncmp(urn, walk->prefix, l)==0)
+	    return walk;
+    }
+    return NULL;
+}
+
+// FIXME: maybe a memleak ?
+static LOOKUP _lookup_fs(MVFS_CONNECTOR* priv, const char* file)
 {
     LOOKUP ret = { .fs = NULL, .filename = NULL };
     MVFS_ARGS* args = mvfs_args_from_url(file);
 
-    const char* type = mvfs_args_get(args,MVFS_ARGS_TYPE);
-    const char* host = mvfs_args_get(args,MVFS_ARGS_HOSTNAME);
-    const char* port = mvfs_args_get(args,MVFS_ARGS_PORT);
-    const char* path = mvfs_args_get(args,MVFS_ARGS_PATH);
+    char* path = mvfs_args_get_def(args,MVFS_ARGS_PATH, "/");
 
-    if (!path)	path = "/";
-    if (!host)  host = "";
-    if (!type)  type = "file";
+    // prevent attempting to chroot
+    mvfs_args_set(args, MVFS_ARGS_PATH, "");
 
-    char buffer[8194];
-    if ((port) && strlen(port))
-	sprintf(buffer,"%s://%s:%s/", type, host, port);
-    else
-	sprintf(buffer,"%s://%s/", type, host);
+    char* key = mvfs_args_to_url(args);
 
     // FIXME: the whole of this could reside in an URI->Plan9 fs layer, which does the connection handling automatically
-    DEBUGMSG("looking for fs for: \"%s\" (key: %s)", file, buffer);
+    DEBUGMSG("looking for fs for: \"%s\" (key: %s)", file, key);
 
     // now try to find a matching fs -- fixme !!!!
     FSENT* p;
     for (p=priv->filesystems; p; p=p->next)
     {
-	if (!strcmp(p->url,buffer))
+	if (!strcmp(p->url,key))
 	{
-	    DEBUGMSG("found an existing connection for: %s (%s", file, buffer);
+	    DEBUGMSG("found an existing connection for: %s (%s", file, key);
 	    ret.fs       = p->fs;
 	    ret.filename = strdup(path);
 	    goto out;
 	}
     }
 
-    DEBUGMSG("Dont have an connection for %s (%s) yet - trying to connect ...", file, buffer);
+    DEBUGMSG("Dont have an connection for %s (%s) yet - trying to connect ...", file, key);
 
-    // prevent attempting to chroot
-    mvfs_args_set(args, MVFS_ARGS_PATH, "");
+    MVFS_CONNECTOR_PREFIXMAP* mapping = _lookup_prefix(priv, file);
+    if (mapping)
+    {
+	fprintf(stderr, "got a mapping: %s\n", mapping->prefix);
+    }
+
     MVFS_FILESYSTEM* fs = mvfs_fs_create_args(args);
     if (fs == NULL)
     {
-	ERRMSG("Couldnt connect to service: %s", buffer);
+	ERRMSG("Couldnt connect to service: %s", key);
 	goto err;
     }
 
     FSENT* newfs = calloc(1,sizeof(FSENT));
     newfs->fs   = fs;
-    newfs->url  = strdup(buffer);
+    newfs->url  = strdup(key);
     newfs->next = priv->filesystems;
     priv->filesystems = newfs;
 
@@ -180,7 +179,7 @@ out:
     return ret;
 }
 
-static MVFS_FILE* _autoconnectfs_fsop_open(MVFS_FILESYSTEM* fs, const char* name, mode_t mode)
+static MVFS_FILE* _connectorfs_fsop_open(MVFS_FILESYSTEM* fs, const char* name, mode_t mode)
 {
     __FSOPS_HEAD(NULL);
     LOOKUP lu = _lookup_fs(fspriv,name);
@@ -195,7 +194,7 @@ static MVFS_FILE* _autoconnectfs_fsop_open(MVFS_FILESYSTEM* fs, const char* name
     return f;
 }
 
-static MVFS_STAT* _autoconnectfs_fsop_stat(MVFS_FILESYSTEM* fs, const char* name)
+static MVFS_STAT* _connectorfs_fsop_stat(MVFS_FILESYSTEM* fs, const char* name)
 {
     __FSOPS_HEAD(NULL);
     LOOKUP lu = _lookup_fs(fspriv, name);
@@ -210,7 +209,7 @@ static MVFS_STAT* _autoconnectfs_fsop_stat(MVFS_FILESYSTEM* fs, const char* name
     return st;
 }
 
-static int _autoconnectfs_fsop_unlink(MVFS_FILESYSTEM* fs, const char* name)
+static int _connectorfs_fsop_unlink(MVFS_FILESYSTEM* fs, const char* name)
 {
     __FSOPS_HEAD(-EFAULT);
     LOOKUP lu = _lookup_fs(fspriv, name);
@@ -225,7 +224,7 @@ static int _autoconnectfs_fsop_unlink(MVFS_FILESYSTEM* fs, const char* name)
     return ret;
 }
 
-static int _autoconnectfs_fsop_chmod(MVFS_FILESYSTEM* fs, const char* name, mode_t mode)
+static int _connectorfs_fsop_chmod(MVFS_FILESYSTEM* fs, const char* name, mode_t mode)
 {
     __FSOPS_HEAD(-EFAULT);
     LOOKUP lu = _lookup_fs(fspriv, name);
@@ -240,7 +239,7 @@ static int _autoconnectfs_fsop_chmod(MVFS_FILESYSTEM* fs, const char* name, mode
     return ret;
 }
 
-static MVFS_SYMLINK _autoconnectfs_fsop_readlink(MVFS_FILESYSTEM* fs, const char* name)
+static MVFS_SYMLINK _connectorfs_fsop_readlink(MVFS_FILESYSTEM* fs, const char* name)
 {
     __FSOPS_HEAD(((MVFS_SYMLINK){.errcode = -EFAULT}));
     LOOKUP lu = _lookup_fs(fspriv, name);
@@ -255,15 +254,15 @@ static MVFS_SYMLINK _autoconnectfs_fsop_readlink(MVFS_FILESYSTEM* fs, const char
     return ret;
 }
 
-MVFS_FILESYSTEM* mvfs_autoconnectfs_create()
+MVFS_FILESYSTEM* mvfs_connector_create()
 {
-    MVFS_FILESYSTEM* fs = mvfs_fs_alloc(_fsops,FS_MAGIC);
-    ACFS_FS_PRIV* priv = (ACFS_FS_PRIV*)calloc(1,sizeof(ACFS_FS_PRIV));
-    fs->priv.ptr = priv;
+    MVFS_CONNECTOR* connector = (MVFS_CONNECTOR*)calloc(1,sizeof(MVFS_CONNECTOR));
+    connector.fs = mvfs_fs_alloc(_fsops,FS_MAGIC);
+    fs->priv.ptr = connector;
     return fs;
 }
 
-char* mvfs_autoconnectfs_getconnections(MVFS_FILESYSTEM* fs)
+char* mvfs_connectorfs_getconnections(MVFS_FILESYSTEM* fs)
 {
     __FSOPS_HEAD(NULL);
     FSENT* ent = fspriv->filesystems;

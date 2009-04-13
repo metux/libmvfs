@@ -93,7 +93,7 @@ MVFS_FILESYSTEM* mvfs_fs_create_args(MVFS_ARGS* args)
 	return mvfs_hostfs_create_args(args);
     }
 
-    const char* type = mvfs_args_get(args,"type");
+    const char* type = mvfs_args_get(args,MVFS_ARGS_TYPE);
     if (type==NULL)
     {
 	DEBUGMSG("missing type ... defaulting to \"file\"");

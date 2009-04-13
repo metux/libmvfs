@@ -16,6 +16,13 @@ extern "C" {
 
 typedef struct __mvfs_args	MVFS_ARGS;
 
+#define MVFS_ARGS_TYPE		"type"
+#define MVFS_ARGS_HOSTNAME	"host"
+#define MVFS_ARGS_PORT		"port"
+#define MVFS_ARGS_USERNAME	"user"
+#define MVFS_ARGS_SECRET	"secret"
+#define MVFS_ARGS_PATH		"path"
+
 /* allocate an empty args structure */
 MVFS_ARGS*  mvfs_args_alloc();
 
@@ -30,6 +37,17 @@ const char* mvfs_args_get(MVFS_ARGS* args, const char* name);
 
 /* parse an URL into an argument list object */
 MVFS_ARGS*  mvfs_args_from_url(const char* s);
+
+inline const void* mvfs_args_get_def(MVFS_ARGS* args, const char* name, const char* def)
+{
+    const char* r = mvfs_args_get(args, name);
+    if (r)
+	return r;
+    else
+	return def;
+}
+
+char* mvfs_args_to_url(MVFS_ARGS* args);
 
 #ifdef __cplusplus
 }

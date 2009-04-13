@@ -19,8 +19,8 @@ MIXP_CFLAGS?=`$(PKG_CONFIG) --cflags libmixp`
 HASH_LIBS=-lhash
 HASH_CFLAGS=
 
-CFLAGS+=$(MIXP_CFLAGS)
-LDFLAGS+=$(MIXP_LIBS)
+#CFLAGS+=$(MIXP_CFLAGS)
+#LDFLAGS+=$(MIXP_LIBS)
 
 %.pc:		%.pc.in
 	cat $< | \

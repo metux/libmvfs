@@ -431,7 +431,7 @@ int mvfs_mixpfs_fsops_unlink(MVFS_FILESYSTEM* fs, const char* name)
 MVFS_FILESYSTEM* mvfs_mixpfs_create_args(MVFS_ARGS* args)
 {
     const char* url = mvfs_args_get(args,"url");
-    const char* path= mvfs_args_get(args,"path");
+    const char* path= mvfs_args_get(args,MVFS_ARGS_PATH);
     
     if (path && strlen(path) && strcmp("/",path))
     {

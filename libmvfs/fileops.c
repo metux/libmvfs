@@ -7,14 +7,17 @@
     This code is published under the terms of the GNU Public License 2.0
 */
 
-#include <mvfs/types.h>
-#include <mvfs/default_ops.h>
+#include "mvfs-internal.h"
 
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <malloc.h>
+
+#include <mvfs/types.h>
+#include <mvfs/default_ops.h>
+
 
 off64_t mvfs_file_seek    (MVFS_FILE* fp, off64_t offset, int whence)
 {

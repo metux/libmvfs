@@ -32,11 +32,9 @@ LDFLAGS+=$(MIXP_LIBS)
 %.a:
 	$(AR) cr $@ $^ && $(RANLIB) $@
 
-#%.so:
-#	$(LD) -o $@ -soname $(SONAME) -shared $^
-
 %.so:
-	$(LD) -o $@ -lc $(LDFLAGS) -no-undefined -shared $^
+	echo "Calling: " $(LD) -o $@ -lc $(LDFLAGS) -no-undefined -shared -soname $(SONAME) $^
+	$(LD) -o $@ -lc $(LDFLAGS) -no-undefined -shared -soname $(SONAME) $^
 
 %.nopic.o:	%.c
 	$(CC) -o $@ -c $< $(CFLAGS)

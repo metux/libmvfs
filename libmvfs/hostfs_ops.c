@@ -245,7 +245,7 @@ static MVFS_STAT* mvfs_hostfs_fileops_scan(MVFS_FILE* file)
     if ((strcmp(ent->d_name,".")==0) || (strcmp(ent->d_name,"..")==0))
 	return mvfs_hostfs_fileops_scan(file);
 
-    return mvfs_stat_alloc(ent->d_name, NULL, NULL);
+    return mvfs_stat_alloc(ent->d_name, "none", "none");	// FIXME !
 }
 
 static int mvfs_hostfs_fileops_reset(MVFS_FILE* file)

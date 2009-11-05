@@ -1,13 +1,24 @@
 
 SONAME=mvfs
+LIBC_LIBS=-lc
 
-SRCNAMES  = default_ops fileops hostfs_ops mixp_ops fsops dirops rostring_ops propertylist_ops strmode arglist autoconnect_ops metacache_fs
+SRCNAMES  = \
+	strmode		\
+	urlparse	\
+	arglist		\
+	default_ops 	\
+	fileops 	\
+	fsops		\
+	$(FS_SRCNAMES)
+
+include _fs.*.mk
+
 NOPIC_OBJ = $(addsuffix .nopic.o, $(SRCNAMES))
 PIC_OBJ   = $(addsuffix .pic.o, $(SRCNAMES))
 UNO_OBJ   = $(addsuffix .uno, $(SRCNAMES))
 
-CFLAGS+=-I../include $(MIXP_CFLAGS) $(HASH_CFLAGS) -D_GNU_SOURCE
-LDFLAGS+=$(MIXP_LIBS) $(HASH_LIBS) -lc -no-undefined
+CFLAGS+=-I../include $(FS_CFLAGS) $(HASH_CFLAGS) -D_GNU_SOURCE
+LDFLAGS+=$(FS_LIBS) $(HASH_LIBS) -no-undefined
 
 all:	info lib$(SONAME).a lib$(SONAME).so
 

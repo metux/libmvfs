@@ -1,4 +1,25 @@
 
+---- 0.1.0.5 ----
+
+2008-12-30	Enrico Weigelt <weigelt@metux.de>
+
+    * removed non-functional propertylist_ops from stable tree (remains in trunk)
+    * removed non-functional rostring_ops from stable tree (remains in trunk)
+    * removed non-functional mountfs from stable tree (remains in trunk)
+    * removed unused file dirops.c
+    * added some helpful macros in <mvfs/_utils.h> - only for internal use!
+    * added a simple URL parsing routine (<mvfs/url.h> + urlparse.c)
+    * args handling now uses new URL parser, several cleanups
+    * several C++ fixes and cosmetics
+    * mvfs_stat_dup() now checks for NULL stat -> returns NULL in that case
+    * some minor fixups in default_ops
+    * some fixups and sanity checks in fsops.c
+    * metacachefs: added chmod() operation
+    * hostfs: added mkdir(), unlink(), fixed stat/scan handling
+    * fixed some linkage problem w/ libc (explicit -lc required at the end of the ld command)
+    * moved out the fs-specific make rules to their own files
+    * adding readlink() call to hostfs, metacachefs, autoconnectfs
+
 ---- 0.1.0.4 release ----
 
 2008-06-01	Enrico Weigelt <weigelt@metux.de>		[r578]

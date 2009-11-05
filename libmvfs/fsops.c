@@ -7,6 +7,8 @@
     This code is published under the terms of the GNU Public License 2.0
 */
 
+#include "mvfs-internal.h"
+
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>

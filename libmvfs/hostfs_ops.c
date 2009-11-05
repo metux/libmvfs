@@ -15,6 +15,8 @@
     ptr		DIR* pointer
 */
 
+#include "mvfs-internal.h"
+
 // #define __DEBUG
 
 #define PRIV_FD(file)			(file->priv.id)

@@ -7,11 +7,14 @@
     This code is published under the terms of the GNU Public License 2.0
 */
 
+#include "mvfs-internal.h"
+
 #include <string.h>
 #include <malloc.h>
 #include <hash.h>
 #include <stdio.h>
 #include <errno.h>
+
 #include <mvfs/mvfs.h>
 #include <mvfs/url.h>
 #include <mvfs/_utils.h>

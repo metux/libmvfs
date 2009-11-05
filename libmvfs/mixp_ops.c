@@ -9,6 +9,8 @@
 
 // #define _DEBUG
 
+#include "mvfs-internal.h"
+
 #define _LARGEFILE64_SOURCE
 
 #include <sys/types.h>

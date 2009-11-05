@@ -29,6 +29,14 @@
 	}						\
     }
 
+#define __FSOP_STD_VAL(opname,faultret,stdret,param...)	\
+    __CHECK_FS(faultret);				\
+    return ((fs->ops.opname) ? (fs->ops.opname( fs, ##param )) : (stdret))
+
+#define __FSOP_STD_CALL(opname,faultret,param...)		\
+    __CHECK_FS(faultret);				\
+    return ((fs->ops.opname) ? (fs->ops.opname( fs, ##param )) : mvfs_default_fsops_##opname(fs, ##param))
+
 MVFS_FILESYSTEM* mvfs_fs_alloc(MVFS_FILESYSTEM_OPS ops, const char* magic)
 {
     MVFS_FILESYSTEM* fs = calloc(sizeof(MVFS_FILESYSTEM),1);
@@ -40,26 +48,17 @@ MVFS_FILESYSTEM* mvfs_fs_alloc(MVFS_FILESYSTEM_OPS ops, const char* magic)
 
 MVFS_FILE* mvfs_fs_openfile(MVFS_FILESYSTEM* fs, const char* name, mode_t mode)
 {
-    __CHECK_FS(NULL);
-    if (fs->ops.openfile == NULL)
-	return mvfs_default_fsops_openfile(fs, name, mode);
-    return fs->ops.openfile(fs, name, mode);
+    __FSOP_STD_CALL(openfile,NULL,name,mode);
 }
 
 MVFS_STAT* mvfs_fs_statfile(MVFS_FILESYSTEM* fs, const char* filename)
 {
-    __CHECK_FS(NULL);
-    return ((fs->ops.stat==NULL) ?
-	    mvfs_default_fsops_stat(fs, filename) : 
-	    fs->ops.stat(fs, filename));
+    __FSOP_STD_CALL(stat,NULL,filename);
 }
 
 int mvfs_fs_unlink(MVFS_FILESYSTEM* fs, const char* filename)
 {
-    __CHECK_FS(-EFAULT);
-    return ((fs->ops.unlink==NULL) ? 
-	mvfs_default_fsops_unlink(fs,filename) :
-	fs->ops.unlink(fs, filename));
+    __FSOP_STD_CALL(unlink,-EFAULT,filename);
 }
 
 int mvfs_fs_ref(MVFS_FILESYSTEM* fs)
@@ -116,48 +115,33 @@ MVFS_FILESYSTEM* mvfs_fs_create_args(MVFS_ARGS* args)
 
 MVFS_SYMLINK mvfs_fs_readlink(MVFS_FILESYSTEM* fs, const char* name)
 {
-    __CHECK_FS(((MVFS_SYMLINK){.errcode = -EFAULT, .target=""}));
-    if (fs->ops.readlink == NULL)
-	return ((MVFS_SYMLINK){.errcode = -EOPNOTSUPP, .target=""});
-    return fs->ops.readlink(fs, name);
+    __FSOP_STD_VAL(readlink,
+	((MVFS_SYMLINK){.errcode = -EFAULT, .target=""}),
+	((MVFS_SYMLINK){.errcode = -EOPNOTSUPP, .target=""}),
+	name);
 }
 
 int mvfs_fs_symlink(MVFS_FILESYSTEM* fs, const char* n1, const char* n2)
 {
-    __CHECK_FS(-EFAULT);
-    if (fs->ops.symlink == NULL)
-	return -EOPNOTSUPP;
-    return fs->ops.symlink(fs, n1, n2);
+    __FSOP_STD_VAL(symlink, -EFAULT, -EOPNOTSUPP, n1, n2);
 }
 
 int mvfs_fs_rename(MVFS_FILESYSTEM* fs, const char* n1, const char* n2)
 {
-    __CHECK_FS(-EFAULT);
-    if (fs->ops.rename == NULL)
-	return -EOPNOTSUPP;    
-    return fs->ops.rename(fs, n1, n2);
+    __FSOP_STD_VAL(rename, -EFAULT, -EOPNOTSUPP, n1, n2);
 }
 
 int mvfs_fs_chmod(MVFS_FILESYSTEM* fs, const char* filename, mode_t mode)
 {
-    __CHECK_FS(-EFAULT);
-    if (fs->ops.chmod == NULL)
-	return -EOPNOTSUPP;
-    return fs->ops.chmod(fs, filename, mode);
+    __FSOP_STD_VAL(chmod, -EFAULT, -EOPNOTSUPP, filename, mode);
 }
 
 int mvfs_fs_chown(MVFS_FILESYSTEM* fs, const char* filename, const char* uid, const char* gid)
 {
-    __CHECK_FS(-EFAULT);
-    if (fs->ops.chown == NULL)
-	return -EOPNOTSUPP;
-    return fs->ops.chown(fs, filename, uid, gid);
+    __FSOP_STD_VAL(chown, -EFAULT, -EOPNOTSUPP, filename, uid, gid);
 }
 
 int mvfs_fs_mkdir(MVFS_FILESYSTEM* fs, const char* filename, mode_t mode)
 {
-    __CHECK_FS(-EFAULT);
-    if (fs->ops.mkdir == NULL)
-	return -EOPNOTSUPP;
-    return fs->ops.mkdir(fs, filename, mode);
+    __FSOP_STD_VAL(mkdir, -EFAULT, -EOPNOTSUPP, filename, mode);
 }

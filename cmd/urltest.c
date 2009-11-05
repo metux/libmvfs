@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <mvfs/url.h>
 
 int test_url(const char* url)

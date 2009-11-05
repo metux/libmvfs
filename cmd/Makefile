@@ -2,7 +2,7 @@
 # Author(s): Enrico Weigelt <weigelt@metux.de>
 #
 
-all:		mvfs
+all:		mvfs urltest
 
 include ../build.mk
 
@@ -22,5 +22,8 @@ LIBMVFS=../libmvfs/libmvfs.a $(MIXP_LIBS) $(HASH_LIBS)
 mvfs:	mvfs.o
 	$(CC) -o $@ $^ $(LIBMVFS)
 
+urltest:	urltest.o
+	$(CC) -o $@ $^ $(LIBMVFS)
+
 clean:
-	rm -f *.o mvfs
+	rm -f *.o mvfs urltest

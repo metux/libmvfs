@@ -1,11 +1,23 @@
 
--- 0.1.0.3 release
+---- 0.1.0.4 release ----
+
+2008-06-01	Enrico Weigelt <weigelt@metux.de>		[r578]
+
+    * metacache_fs: 	added some more sanity checks
+    * autoconnect_fs:	fixed buggy pathname handling
+    * Makefile:		added a few check rules (UNO)
+
+2008-05-16	Enrico Weigelt <weigelt@metux.de>
+
+    * added soname
+
+---- 0.1.0.3 release ----
 
 2008-05-12	Enrico Weigelt <weigelt@metux.de>
 		Fixed bug in fileops.c (stat_alloc()) and hostfs.c
 		mvfs cmdline tool now uses file:// as default fs
 
--- 0.1.0.2 release
+---- 0.1.0.2 release ----
 
 2008-04-02	Enrico Weigelt <weigelt@metux.de>
 		mixp: Fixed an ugly in the stat structure handling (was errornously free'd after scan())

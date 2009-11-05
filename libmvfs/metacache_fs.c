@@ -114,7 +114,12 @@ typedef struct
 	METACACHE_FS_PRIV* fspriv = (fs->priv.ptr);			\
 	if (fspriv == NULL)						\
 	{								\
-	    fprintf(stderr,"%s() corrupt fs handle\n", __FUNCTION__);	\
+	    fprintf(stderr,"%s() corrupt fspriv\n", __FUNCTION__);	\
+	    return err;							\
+	}								\
+	if (fspriv->fs == NULL)						\
+	{								\
+	    fprintf(stderr,"%s() missing backend fs\n", __FUNCTION__);	\
 	    return err;							\
 	}
 

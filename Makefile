@@ -25,6 +25,9 @@ install-includes:	include/mvfs/*.h
 
 install:	install-pkgconfig install-includes install-lib
 
+uno-check:
+	make -C libmvfs uno-check
+
 clean:	
 	rm -f *.o *.a *.so libmvfs.pc
 	make -C libmvfs clean

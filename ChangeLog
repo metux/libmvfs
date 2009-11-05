@@ -1,0 +1,3 @@
+
+2008-04-02	Enrico Weigelt <weigelt@metux.de>
+		mixp: Fixed an ugly in the stat structure handling (was errornously free'd after scan())

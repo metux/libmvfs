@@ -97,6 +97,8 @@ typedef struct
     MIXP_DIRENT* dirptr;
 } MIXP_FILE_PRIV;
 
+#ifdef _MVFS_SANITY_CHECKS
+
 #define __FILEOPS_HEAD(err);				\
 	if (file==NULL)					\
 	{						\
@@ -109,6 +111,13 @@ typedef struct
 	    ERRMSG("corrupt file handle");		\
 	    return err;					\
 	}
+
+#else
+
+#define __FILEOPS_HEAD(err);				\
+	MIXP_FILE_PRIV* priv = (file->priv.ptr);	\
+
+#endif
 
 static int __mixp_flushdir(MVFS_FILE* file)
 {

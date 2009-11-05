@@ -91,6 +91,8 @@ typedef struct
     hash		cache;
 } METACACHE_FS_PRIV;
 
+#ifdef _MVFS_SANITY_CHECKS
+
 #define __FILEOPS_HEAD(err);					\
 	if (file==NULL)						\
 	{							\
@@ -132,6 +134,17 @@ typedef struct
 	    ERRMSG("missing backend fs");			\
 	    return err;						\
 	}
+
+#else
+
+#define __FILEOPS_HEAD(err);					\
+	METACACHE_FILE_PRIV* priv = (file->priv.ptr);		\
+	METACACHE_FS_PRIV* fspriv = (file->fs->priv.ptr);	\
+
+#define __FSOPS_HEAD(err);					\
+	METACACHE_FS_PRIV* fspriv = (fs->priv.ptr);		\
+
+#endif
 
 // default cache timeout is 5sec (1^6 microseconds)
 #define CACHE_TIMEOUT	(5000000)

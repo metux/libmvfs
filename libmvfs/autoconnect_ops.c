@@ -13,8 +13,6 @@
 
 #include "mvfs-internal.h"
 
-#define __DEBUG
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -24,6 +22,8 @@
 #include <mvfs/_utils.h>
 
 #define FS_MAGIC	"metux/autoconnect-fs-1.0"
+
+#ifdef _MVFS_SANITY_CHECKS
 
 #define __FILEOPS_HEAD(err);					\
 	if (file==NULL)						\
@@ -66,6 +66,17 @@
 	    ERRMSG("corrupt fs handle");			\
 	    return err;						\
 	}
+
+#else
+
+#define __FILEOPS_HEAD(err);					\
+	METACACHE_FILE_PRIV* priv = (file->priv.ptr);		\
+	ACFS_FS_PRIV* fspriv = (file->fs->priv.ptr);		\
+
+#define __FSOPS_HEAD(err);					\
+	ACFS_FS_PRIV* fspriv = (fs->priv.ptr);			\
+
+#endif
 
 static MVFS_STAT*   _autoconnectfs_fsop_stat     (MVFS_FILESYSTEM* fs, const char* name);
 static MVFS_FILE*   _autoconnectfs_fsop_open     (MVFS_FILESYSTEM* fs, const char* name, mode_t mode);

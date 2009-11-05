@@ -99,6 +99,25 @@ static inline int mvfs_fs_is_dir(MVFS_FILESYSTEM* fs, const char* filename)
     }
 }
 
+// check whether given filename exists and points to an regular file
+static inline int mvfs_fs_is_regfile(MVFS_FILESYSTEM* fs, const char* filename)
+{
+    MVFS_STAT* st = mvfs_fs_statfile(fs, filename);
+    if (st == NULL)
+	return 0;
+
+    if (S_ISREG(st->mode))
+    {
+	mvfs_stat_free(st);
+	return 1;
+    }
+    else
+    {
+	mvfs_stat_free(st);
+	return 0;
+    }
+}
+
 // check whether given filename exists
 static inline int mvfs_fs_exists(MVFS_FILESYSTEM* fs, const char* filename)
 {

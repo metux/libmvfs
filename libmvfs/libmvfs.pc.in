@@ -1,0 +1,11 @@
+prefix=@PREFIX@
+exec_prefix=${prefix}
+libdir=@LIBDIR@
+includedir=@INCLUDEDIR@
+
+Name: libmvfs
+Description: metux VFS library
+Requires:
+Version: @VERSION@
+Libs: -L${libdir} -lmvfs
+Cflags: -I${includedir}

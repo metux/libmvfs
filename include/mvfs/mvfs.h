@@ -15,4 +15,9 @@
 #include <mvfs/fileops.h>
 #include <fcntl.h>
 
+// experimental functions which run in an separate background process
+// might be totally unstable
+int mvfs_fs_read_fd(MVFS_FILESYSTEM* fs, const char* name);
+int mvfs_fs_ls_fd(MVFS_FILESYSTEM* fs, const char* name);
+
 #endif

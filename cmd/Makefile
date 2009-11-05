@@ -2,7 +2,7 @@
 # Author(s): Enrico Weigelt <weigelt@metux.de>
 #
 
-all:		mvfs urltest
+all:		mvfs urltest mvfsp
 
 include ../build.mk
 
@@ -25,5 +25,8 @@ mvfs:	mvfs.o
 urltest:	urltest.o
 	$(CC) -o $@ $^ $(LIBMVFS)
 
+mvfsp:	mvfsp.o
+	$(CC) -o $@ $^ $(LIBMVFS)
+
 clean:
-	rm -f *.o mvfs urltest
+	rm -f *.o mvfs urltest mvfsp

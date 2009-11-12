@@ -1,5 +1,6 @@
 
-SONAME=mvfs
+LIBNAME=mvfs
+SONAME=$(LIBNAME)
 LIBC_LIBS=-lc
 
 SRCNAMES  = \
@@ -20,7 +21,7 @@ UNO_OBJ   = $(addsuffix .uno, $(SRCNAMES))
 CFLAGS+=-I../include $(FS_CFLAGS) $(HASH_CFLAGS) -D_GNU_SOURCE
 LDFLAGS+=$(FS_LIBS) $(HASH_LIBS) -no-undefined
 
-all:	info lib$(SONAME).a lib$(SONAME).so
+all:	info lib$(LIBNAME).a lib$(LIBNAME).so
 
 info:
 	echo "CFLAGS=$(CFLAGS)"
@@ -28,14 +29,14 @@ info:
 
 include ../build.mk
 
-lib$(SONAME).a::	$(NOPIC_OBJ)
+lib$(LIBNAME).a::	$(NOPIC_OBJ)
 
-lib$(SONAME).so::	$(PIC_OBJ)
+lib$(LIBNAME).so::	$(PIC_OBJ)
 
-install:	lib$(SONAME).a	lib$(SONAME).so
+install:	lib$(LIBNAME).a	lib$(LIBNAME).so
 	mkdir -p $(DESTDIR)$(LIBDIR)
-	cp lib$(SONAME).a lib$(SONAME).so $(DESTDIR)$(LIBDIR)
-	chmod ugo+x $(DESTDIR)$(LIBDIR)/lib$(SONAME).so
+	cp lib$(LIBNAME).a lib$(LIBNAME).so $(DESTDIR)$(LIBDIR)
+	chmod ugo+x $(DESTDIR)$(LIBDIR)/lib$(LIBNAME).so
 
 uno-check:	$(UNO_OBJ)
 

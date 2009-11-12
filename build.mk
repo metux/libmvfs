@@ -33,10 +33,13 @@ LDFLAGS+=$(MIXP_LIBS)
 	$(AR) cr $@ $^ && $(RANLIB) $@
 
 #%.so:
-#	$(LD) -o $@ -soname $(SONAME) -shared $^
+#	$(LD) -o $@ -soname lib$(SONAME) -shared $^
+
+#%.so:
+#	$(LD) -o $@ -lc $(LDFLAGS) -no-undefined -shared -soname $(SONAME) $^ $(LIBC_LIBS)
 
 %.so:
-	$(LD) -o $@ -lc $(LDFLAGS) -no-undefined -shared -soname $(SONAME) $^ $(LIBC_LIBS)
+	$(LD) -o $@ -lc $(LDFLAGS) -no-undefined -shared $^ $(LIBC_LIBS)
 
 %.nopic.o:	%.c
 	$(CC) -o $@ -c $< $(CFLAGS)
